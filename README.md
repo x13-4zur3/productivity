@@ -56,7 +56,7 @@ npm run dev
 
 ---
 
-## 📸 Screenshots (Coming Soon)
+## 📸 Screenshots
 
 ![To Do List](https://github.com/x13-4zur3/productivity/blob/6848a77320779abeecad5b46327fd26dd6119a19/screenshots/To%20Do%20List.png)
 ![Journal](https://github.com/x13-4zur3/productivity/blob/13ca6fea2b16b8c5dee35e1fe3c4e81e46413f98/screenshots/Journal.png)
