@@ -59,7 +59,7 @@ npm run dev
 ## 📸 Screenshots (Coming Soon)
 
 ![To Do List](https://www.example.com)
-![Journal](https://www.example.com)
+![Journal](https://github.com/x13-4zur3/productivity/blob/13ca6fea2b16b8c5dee35e1fe3c4e81e46413f98/screenshots/Journal.png)
 
 ---
 
