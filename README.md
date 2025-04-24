@@ -58,7 +58,8 @@ npm run dev
 
 ## 📸 Screenshots (Coming Soon)
 
-> Add images or gifs of the interface, animations, task management, and journaling UI.
+![To Do List](https://www.example.com)
+![Journal](https://www.example.com)
 
 ---
 
