@@ -15,9 +15,7 @@ Only the latest stable release is actively maintained and receives security upda
 
 If you discover a security vulnerability, **please do not create a public GitHub issue**.
 
-Instead, email your report to:
-
-**📫 xie.4zur3@hotmail.com**
+Instead, open a private GitHub issue in this repository using the "Security vulnerability" template.
 
 Please include the following details in your report:
 
@@ -36,7 +34,7 @@ You will receive a confirmation within **48 hours**, and we aim to provide a mit
 We follow responsible disclosure guidelines:
 
 - Vulnerabilities will be publicly disclosed only **after** a fix is released and users have had reasonable time to upgrade.
-- We prefer coordinated disclosure via private communication first.
+- We prefer coordinated disclosure via github issue submission first.
 
 ---
 
