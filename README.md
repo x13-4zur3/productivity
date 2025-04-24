@@ -23,10 +23,10 @@
 
 ## 📦 Tech Stack
 
-- **Frontend**: [React / Flutter / Qt / Electron]
-- **Backend**: [SQLite / Firebase / Supabase]
-- **Languages**: [JavaScript / Dart / C++]
-- **Design**: Tailwind / Material UI / Custom CSS
+- **Frontend**: React (with npm packages)
+- **Backend**: SQLite / Firebase / Supabase
+- **Languages**: JavaScript (with Node.js)
+- **Design**: Tailwind CSS / Custom CSS
 
 ---
 
