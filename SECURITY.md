@@ -25,8 +25,6 @@ Please **do not open an issue** in the repository for security-related problems.
 
 3. **Fixes & Patches**: If the vulnerability is confirmed, we will work to release a fix as quickly as possible. You will be notified once the issue is resolved and patched.
 
-4. **Public Disclosure**: After a fix is deployed, we will publicly disclose the vulnerability with details about the issue, the fix, and how to mitigate similar risks in the future.
-
 ### 🔒 **Secure Communication**
 We highly recommend that you encrypt sensitive information using **PGP** or **GPG** when reporting security vulnerabilities. If needed, we can provide a public key for secure communication.
 
