@@ -11,21 +11,24 @@ Only the latest stable release is actively maintained and receives security upda
 
 ---
 
-## 📧 Reporting a Vulnerability
+## ⚠️ **Do Not Open Issues for Security Vulnerabilities**
+Please **do not open an issue** in the repository for security-related problems. This is to prevent public exposure of the vulnerability.
 
-If you discover a security vulnerability, **please do not create a public GitHub issue**.
+### 📧 **Reporting Process**
+1. **Email Security Team**: Send a detailed email to [xie.4zur3@hotmail.com](mailto:xie.4zur3@hotmail.com) with the following information:
+   - **Description of the vulnerability**: A detailed description of the vulnerability, including steps to reproduce, if possible.
+   - **Severity**: An estimate of the severity (e.g., high, medium, low).
+   - **Impact**: A brief explanation of the potential impact of the vulnerability.
+   - **Proof of Concept**: (Optional) If you have a proof of concept, please include it.
 
-Instead, open a private GitHub issue in this repository using the "Security vulnerability" template.
+2. **Security Review**: Our security team will review the issue and assess the necessary actions. We will acknowledge receipt of your report and provide feedback on how we will address it.
 
-Please include the following details in your report:
+3. **Fixes & Patches**: If the vulnerability is confirmed, we will work to release a fix as quickly as possible. You will be notified once the issue is resolved and patched.
 
-- A clear and concise description of the vulnerability
-- Steps to reproduce or a working proof-of-concept (PoC)
-- The potential impact and risk assessment
-- Any relevant logs, screenshots, or related information
-- Your preferred contact method
+4. **Public Disclosure**: After a fix is deployed, we will publicly disclose the vulnerability with details about the issue, the fix, and how to mitigate similar risks in the future.
 
-You will receive a confirmation within **48 hours**, and we aim to provide a mitigation or patch timeline within **5 business days**.
+### 🔒 **Secure Communication**
+We highly recommend that you encrypt sensitive information using **PGP** or **GPG** when reporting security vulnerabilities. If needed, we can provide a public key for secure communication.
 
 ---
 
