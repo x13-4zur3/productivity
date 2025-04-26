@@ -34,8 +34,7 @@ We highly recommend that you encrypt sensitive information using **PGP** or **GP
 
 We follow responsible disclosure guidelines:
 
-- Vulnerabilities will be publicly disclosed only **after** a fix is released and users have had reasonable time to upgrade.
-- We prefer coordinated disclosure via github issue submission first.
+- Vulnerabilities will be publicly disclosed only **after** a fix is released and users have had reasonable time to upgrade the application.
 
 ---
 
