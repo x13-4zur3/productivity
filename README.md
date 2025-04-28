@@ -6,7 +6,7 @@
   </a>
 </p>
 
-> 📝 Productivity is a productivity-focused desktop app that merges the simplicity of a daily task manager with the depth of a personal journal. Designed for users who want to stay on top of their goals while also taking time to reflect, it offers a minimalist yet powerful way to manage your day and mind.
+> _📝 Productivity is a productivity-focused desktop app that merges the simplicity of a daily task manager with the depth of a personal journal. Designed for users who want to stay on top of their goals while also taking time to reflect, it offers a minimalist yet powerful way to manage your day and mind._
 
 ---
 
