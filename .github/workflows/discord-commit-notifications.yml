@@ -3,7 +3,7 @@ name: Send Commit Notifications to Discord
 on:
   push:
     branches:
-      - main
+      - main  # You can adjust this to your desired branch
 
 jobs:
   send-notification:
@@ -18,7 +18,7 @@ jobs:
         run: |
           COMMIT_MESSAGE=$(git log -1 --pretty=format:'%s')
           COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')
-          FILE_CHANGES=$(git diff-tree --no-commit-id --name-status -r ${{ github.sha }})
+          FILE_CHANGES=$(git diff --name-status HEAD^..HEAD)  # Get changes between the previous commit and the current one
           echo "::set-output name=commit_message::$COMMIT_MESSAGE"
           echo "::set-output name=commit_author::$COMMIT_AUTHOR"
           echo "::set-output name=file_changes::$FILE_CHANGES"
