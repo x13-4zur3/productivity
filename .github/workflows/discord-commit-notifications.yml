@@ -3,10 +3,10 @@ name: Send Commit Notifications to Discord
 on:
   push:
     branches:
-      - main  
+      - main  # Adjust this to your desired branch
 
 permissions:
-  contents: read  
+  contents: read  # Read access to repository contents
 
 jobs:
   send-notification:
@@ -16,7 +16,7 @@ jobs:
       - name: Checkout code with full history
         uses: actions/checkout@v2
         with:
-          fetch-depth: 0  
+          fetch-depth: 0  # Ensures the entire history is fetched
 
       - name: Get Commit Details
         id: commit_details
@@ -41,8 +41,8 @@ jobs:
       - name: Format file changes for Discord
         id: format_changes
         run: |
-          # Escape newlines for valid JSON format
-          FILE_CHANGES_FORMATTED=$(echo "${{ steps.commit_details.outputs.file_changes }}" | sed ':a;N;$!ba;s/\n/\\n/g')
+          # Escape newlines and other special characters for valid JSON format
+          FILE_CHANGES_FORMATTED=$(echo "${{ steps.commit_details.outputs.file_changes }}" | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/"/\\"/g')
 
           # Debugging: Print the formatted file changes
           echo "Formatted File Changes: $FILE_CHANGES_FORMATTED"
