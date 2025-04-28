@@ -1,4 +1,4 @@
-name: Send Commit Notifications to Discord
+name: Test Commit Notification to Discord
 
 on:
   push:
@@ -29,19 +29,12 @@ jobs:
           echo "Commit Message: $COMMIT_MESSAGE"
           echo "Commit Author: $COMMIT_AUTHOR"
           
-          # Retrieve file changes
-          FILE_CHANGES=$(git diff --name-status HEAD~1..HEAD)  # Compare the current commit with the previous one
-          
-          # Debugging: Print the file changes to the workflow logs
-          echo "File Changes: $FILE_CHANGES"
-          
-          # Set output variables
+          # Set output variables for commit message and author
           echo "::set-output name=commit_message::$COMMIT_MESSAGE"
           echo "::set-output name=commit_author::$COMMIT_AUTHOR"
-          echo "::set-output name=file_changes::$FILE_CHANGES"
 
       - name: Send commit details to Discord
         run: |
           curl -X POST -H "Content-Type: application/json" \
-          -d "{\"content\": \"New commit in ${{ github.repository }} by ${{ steps.commit_details.outputs.commit_author }}: \nCommit message: ${{ steps.commit_details.outputs.commit_message }}\nChanged files: ${{ steps.commit_details.outputs.file_changes }}\"}" \
+          -d "{\"content\": \"New commit in ${{ github.repository }} by ${{ steps.commit_details.outputs.commit_author }}: \nCommit message: ${{ steps.commit_details.outputs.commit_message }}\"}" \
           ${{ secrets.DISCORD_WEBHOOK_URL }}
