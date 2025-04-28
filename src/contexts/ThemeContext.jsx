@@ -11,7 +11,7 @@ export const ThemeProvider = ({ children }) => {
   useEffect(() => {
     localStorage.setItem('darkMode', JSON.stringify(isDarkMode));
     document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
-    // Also add/remove dark class for Tailwind dark mode
+
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
