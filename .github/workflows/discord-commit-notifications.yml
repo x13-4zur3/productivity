@@ -3,10 +3,10 @@ name: Send Commit Notifications to Discord
 on:
   push:
     branches:
-      - main  # Adjust this to your desired branch
+      - main  
 
 permissions:
-  contents: read  # Read access to repository contents
+  contents: read  
 
 jobs:
   send-notification:
@@ -16,7 +16,7 @@ jobs:
       - name: Checkout code with full history
         uses: actions/checkout@v2
         with:
-          fetch-depth: 0  # Ensures the entire history is fetched
+          fetch-depth: 0  
 
       - name: Get Commit Details
         id: commit_details
@@ -25,10 +25,10 @@ jobs:
           COMMIT_MESSAGE=$(git log -1 --pretty=format:'%s')
           COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')
           
-          # Retrieve the list of changed files
-          FILE_CHANGES=$(git diff --name-status HEAD^..HEAD)  # Compare the current commit with the previous one
+          # Retrieve the list of changed files, handle case with no previous commits
+          FILE_CHANGES=$(git diff --name-status HEAD~1..HEAD || echo "No previous commit to compare.")
           
-          # Debugging: Print commit message, author, and file changes
+          # Debugging: Print commit message, author, and file changes to the workflow logs
           echo "Commit Message: $COMMIT_MESSAGE"
           echo "Commit Author: $COMMIT_AUTHOR"
           echo "File Changes: $FILE_CHANGES"
@@ -38,12 +38,21 @@ jobs:
           echo "::set-output name=commit_author::$COMMIT_AUTHOR"
           echo "::set-output name=file_changes::$FILE_CHANGES"
 
+      - name: Format file changes for Discord
+        id: format_changes
+        run: |
+          # Escape newlines for valid JSON format
+          FILE_CHANGES_FORMATTED=$(echo "${{ steps.commit_details.outputs.file_changes }}" | sed ':a;N;$!ba;s/\n/\\n/g')
+
+          # Debugging: Print the formatted file changes
+          echo "Formatted File Changes: $FILE_CHANGES_FORMATTED"
+          
+          # Set output for formatted file changes
+          echo "::set-output name=file_changes_formatted::$FILE_CHANGES_FORMATTED"
+
       - name: Send commit details to Discord
         run: |
-          # Format file changes for Discord (remove extra whitespace)
-          FILE_CHANGES_FORMATTED=$(echo "${{ steps.commit_details.outputs.file_changes }}" | sed 's/^/  /g')
-          
           # Send formatted commit details to Discord
           curl -X POST -H "Content-Type: application/json" \
-          -d "{\"content\": \"New commit in ${{ github.repository }} by ${{ steps.commit_details.outputs.commit_author }}: \nCommit message: ${{ steps.commit_details.outputs.commit_message }}\nChanged files:\n$FILE_CHANGES_FORMATTED\"}" \
+          -d "{\"content\": \"New commit in ${{ github.repository }} by ${{ steps.commit_details.outputs.commit_author }}: \nCommit message: ${{ steps.commit_details.outputs.commit_message }}\nChanged files:\n${{ steps.format_changes.outputs.file_changes_formatted }}\"}" \
           ${{ secrets.DISCORD_WEBHOOK_URL }}
