@@ -10,15 +10,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout code with full history
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Ensures the entire history is fetched
 
       - name: Get Commit Details
         id: commit_details
         run: |
           COMMIT_MESSAGE=$(git log -1 --pretty=format:'%s')
           COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')
-          FILE_CHANGES=$(git diff --name-status HEAD~1..HEAD)  # Compare current commit with the previous one
+          FILE_CHANGES=$(git diff --name-status HEAD~1..HEAD)  # Compare the current commit with the previous one
           echo "::set-output name=commit_message::$COMMIT_MESSAGE"
           echo "::set-output name=commit_author::$COMMIT_AUTHOR"
           echo "::set-output name=file_changes::$FILE_CHANGES"
