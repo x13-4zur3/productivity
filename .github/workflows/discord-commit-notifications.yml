@@ -1,4 +1,4 @@
-name: Send Commit Notifications to Discord
+name: Test Commit Notification to Discord
 
 on:
   push:
@@ -25,34 +25,16 @@ jobs:
           COMMIT_MESSAGE=$(git log -1 --pretty=format:'%s')
           COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')
           
-          # Retrieve the list of changed files, handle case with no previous commits
-          FILE_CHANGES=$(git diff --name-status HEAD~1..HEAD || echo "No previous commit to compare.")
-          
-          # Debugging: Print commit message, author, and file changes to the workflow logs
+          # Debugging: Print the commit message and author to the workflow logs
           echo "Commit Message: $COMMIT_MESSAGE"
           echo "Commit Author: $COMMIT_AUTHOR"
-          echo "File Changes: $FILE_CHANGES"
           
-          # Set output variables
+          # Set output variables for commit message and author
           echo "::set-output name=commit_message::$COMMIT_MESSAGE"
           echo "::set-output name=commit_author::$COMMIT_AUTHOR"
-          echo "::set-output name=file_changes::$FILE_CHANGES"
-
-      - name: Format file changes for Discord
-        id: format_changes
-        run: |
-          # Escape newlines and other special characters for valid JSON format
-          FILE_CHANGES_FORMATTED=$(echo "${{ steps.commit_details.outputs.file_changes }}" | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/"/\\"/g')
-
-          # Debugging: Print the formatted file changes
-          echo "Formatted File Changes: $FILE_CHANGES_FORMATTED"
-          
-          # Set output for formatted file changes
-          echo "::set-output name=file_changes_formatted::$FILE_CHANGES_FORMATTED"
 
       - name: Send commit details to Discord
         run: |
-          # Send formatted commit details to Discord
           curl -X POST -H "Content-Type: application/json" \
-          -d "{\"content\": \"New commit in ${{ github.repository }} by ${{ steps.commit_details.outputs.commit_author }}: \nCommit message: ${{ steps.commit_details.outputs.commit_message }}\nChanged files:\n${{ steps.format_changes.outputs.file_changes_formatted }}\"}" \
+          -d "{\"content\": \"New commit in ${{ github.repository }} by ${{ steps.commit_details.outputs.commit_author }}: \nCommit message: ${{ steps.commit_details.outputs.commit_message }}\"}" \
           ${{ secrets.DISCORD_WEBHOOK_URL }}
