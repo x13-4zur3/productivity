@@ -13,9 +13,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Send commit message to Discord
+      - name: Get Commit Details
+        id: commit_details
         run: |
           COMMIT_MESSAGE=$(git log -1 --pretty=format:'%s')
+          COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')
+          FILE_CHANGES=$(git diff-tree --no-commit-id --name-status -r ${{ github.sha }})
+          echo "::set-output name=commit_message::$COMMIT_MESSAGE"
+          echo "::set-output name=commit_author::$COMMIT_AUTHOR"
+          echo "::set-output name=file_changes::$FILE_CHANGES"
+
+      - name: Send commit details to Discord
+        run: |
           curl -X POST -H "Content-Type: application/json" \
-          -d "{\"content\": \"New commit in ${{ github.repository }}: $COMMIT_MESSAGE\"}" \
+          -d "{\"content\": \"New commit in ${{ github.repository }} by ${{ steps.commit_details.outputs.commit_author }}: \nCommit message: ${{ steps.commit_details.outputs.commit_message }}\nChanged files: ${{ steps.commit_details.outputs.file_changes }}\"}" \
           ${{ secrets.DISCORD_WEBHOOK_URL }}
