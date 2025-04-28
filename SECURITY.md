@@ -12,7 +12,7 @@ Only the latest stable release is actively maintained and receives security upda
 ---
 
 ## ⚠️ **Do Not Open Issues for Security Vulnerabilities**
-Please **do not open an issue** in the repository for security-related problems. This is to prevent public exposure of the vulnerability.
+Please **DO NOT OPEN AN ISSUE** in the repository for security-related problems. This is to prevent public exposure of the vulnerability.
 
 ### 📧 **Reporting Process**
 1. **Email Security Team**: Send a detailed email to [xie.4zur3@hotmail.com](mailto:xie.4zur3@hotmail.com) with the following information:
