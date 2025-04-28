@@ -5,6 +5,9 @@ on:
     branches:
       - main  # Adjust this to your desired branch
 
+permissions:
+  contents: read  # Read access to repository contents
+
 jobs:
   send-notification:
     runs-on: ubuntu-latest
