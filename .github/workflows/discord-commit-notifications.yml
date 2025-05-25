@@ -6,7 +6,7 @@ on:
       - main  # Adjust this to your desired branch
 
 permissions:
-  contents: read  # Read access to repository contents
+  contents: read  
 
 jobs:
   send-notification:
