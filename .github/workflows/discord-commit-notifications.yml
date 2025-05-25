@@ -3,7 +3,7 @@ name: Test Commit Notification to Discord
 on:
   push:
     branches:
-      - main  # Adjust this to your desired branch
+      - main  
 
 permissions:
   contents: read  
