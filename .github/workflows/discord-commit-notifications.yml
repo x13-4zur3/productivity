@@ -16,7 +16,7 @@ jobs:
       - name: Checkout code with full history
         uses: actions/checkout@v2
         with:
-          fetch-depth: 0  # Ensures the entire history is fetched
+          fetch-depth: 0  
 
       - name: Get Commit Details
         id: commit_details
