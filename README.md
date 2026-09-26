@@ -48,7 +48,7 @@ npm run build
 ## 🛠️ Development
 
 ```sh
-git clone https://github.com/x13-4zur3/productivity-app.git
+git clone https://github.com/x13-4zur3/productivity.git
 cd productivity-app
 npm install
 npm run dev
