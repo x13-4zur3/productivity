@@ -1,0 +1,27 @@
+[
+  {
+    "filename": "pyobjc_core-11.1-cp313-cp313-macosx_10_13_universal2.whl",
+    "url": "https://files.pythonhosted.org/packages/c5/24/12e4e2dae5f85fd0c0b696404ed3374ea6ca398e7db886d4f1322eb30799/pyobjc_core-11.1-cp313-cp313-macosx_10_13_universal2.whl",
+    "sha256": "18986f83998fbd5d3f56d8a8428b2f3e0754fd15cef3ef786ca0d29619024f2c"
+  },
+  {
+    "filename": "pyobjc_framework_cocoa-11.1-cp313-cp313-macosx_10_13_universal2.whl",
+    "url": "https://files.pythonhosted.org/packages/4e/0b/a01477cde2a040f97e226f3e15e5ffd1268fcb6d1d664885a95ba592eca9/pyobjc_framework_cocoa-11.1-cp313-cp313-macosx_10_13_universal2.whl",
+    "sha256": "54e93e1d9b0fc41c032582a6f0834befe1d418d73893968f3f450281b11603da"
+  },
+  {
+    "filename": "pyobjc_framework_webkit-11.1-cp313-cp313-macosx_10_13_universal2.whl",
+    "url": "https://files.pythonhosted.org/packages/7a/8d/66561d95b00b8e57a9d5725ae34a8d9ca7ebeb776f13add989421ff90279/pyobjc_framework_webkit-11.1-cp313-cp313-macosx_10_13_universal2.whl",
+    "sha256": "1d01008756c3912b02b7c02f62432467fbee90a93e3b8e31fa351b4ca97c9c98"
+  },
+  {
+    "filename": "pyobjc_framework_quartz-11.1-cp313-cp313-macosx_10_13_universal2.whl",
+    "url": "https://files.pythonhosted.org/packages/bd/27/4f4fc0e6a0652318c2844608dd7c41e49ba6006ee5fb60c7ae417c338357/pyobjc_framework_quartz-11.1-cp313-cp313-macosx_10_13_universal2.whl",
+    "sha256": "43a1138280571bbf44df27a7eef519184b5c4183a588598ebaaeb887b9e73e76"
+  },
+  {
+    "filename": "pyobjc_framework_security-11.1-cp313-cp313-macosx_10_13_universal2.whl",
+    "url": "https://files.pythonhosted.org/packages/3f/d8/cb20b4c4d15b2bdc7e39481159e50a933ddb87e4702d35060c254b316055/pyobjc_framework_security-11.1-cp313-cp313-macosx_10_13_universal2.whl",
+    "sha256": "158da3b2474e2567fd269531c4ee9f35b8ba4f1eccbd1fb4a37c85a18bf1243c"
+  }
+]

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=Productivity
+Comment=Journal and to-do list
+Exec=productivity
+Icon=accessories-text-editor
+Terminal=false
+Type=Application
+Categories=Office;Utility;
+Actions=Exit;
+
+[Desktop Action Exit]
+Name=Exit Productivity
+Exec=productivity --stop

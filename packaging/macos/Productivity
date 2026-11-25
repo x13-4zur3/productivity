@@ -1,0 +1,8 @@
+#!/bin/sh
+resources=$(CDPATH= cd "$(dirname "$0")/../Resources" && pwd) || exit 1
+case "$(uname -m)" in
+    arm64) architecture=aarch64 ;;
+    x86_64) architecture=x86_64 ;;
+    *) exit 1 ;;
+esac
+exec "$resources/runtime-$architecture/bin/python3" -B "$resources/app/desktop_unix.py" "$@"
