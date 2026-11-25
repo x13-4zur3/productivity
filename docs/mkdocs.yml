@@ -1,0 +1,60 @@
+site_name: Productivity Docs
+site_description: Install Productivity and learn to use its journal, tasks, focus timer, and accounts.
+repo_name: x13-4zur3/productivity
+repo_url: https://github.com/x13-4zur3/productivity
+edit_uri: edit/main/docs/pages/
+docs_dir: pages
+strict: true
+
+theme:
+  name: material
+  language: en
+  logo: assets/productivity.png
+  favicon: assets/productivity.png
+  font: false
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - content.action.edit
+    - content.code.copy
+    - navigation.sections
+    - navigation.footer
+    - search.suggest
+  palette:
+    - scheme: slate
+      toggle:
+        icon: material/brightness-7
+        name: Switch to light mode
+    - scheme: default
+      toggle:
+        icon: material/brightness-4
+        name: Switch to dark mode
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+extra_css:
+  - assets/docs.css
+
+nav:
+  - Start here:
+      - Overview: index.md
+      - Install & update: install.md
+  - User guide:
+      - Journal, tasks & focus: use.md
+      - Accounts & data: accounts.md
+      - Troubleshooting: troubleshooting.md
+  - Developers:
+      - Build from source: build.md
+      - Host the account service: hosting.md
