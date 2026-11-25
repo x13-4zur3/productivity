@@ -1,4 +1,5 @@
-Target amd64-unicode
+; Use the standard NSIS stub to install the bundled x64 runtime.
+Target x86-unicode
 Unicode true
 ManifestDPIAware true
 SetCompressor /SOLID lzma
@@ -7,6 +8,7 @@ SetCompressor /SOLID lzma
 !include "LogicLib.nsh"
 !include "FileFunc.nsh"
 !include "nsDialogs.nsh"
+!include "x64.nsh"
 
 !define APP_NAME "Productivity"
 !define APP_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Productivity"
@@ -28,8 +30,8 @@ VIAddVersionKey /LANG=1033 "ProductVersion" "${APP_VERSION}"
 VIAddVersionKey /LANG=1033 "LegalCopyright" "Productivity contributors"
 
 !define MUI_ABORTWARNING
-!define MUI_ICON "${__FILEDIR__}/productivity.ico"
-!define MUI_UNICON "${__FILEDIR__}/productivity.ico"
+!define MUI_ICON "${__FILEDIR__}\productivity.ico"
+!define MUI_UNICON "${__FILEDIR__}\productivity.ico"
 !define MUI_DIRECTORYPAGE_TEXT_TOP "Choose where to install Productivity. Select a new folder or the folder where Productivity is already installed."
 !define MUI_UNCONFIRMPAGE_TEXT_TOP "Remove Productivity and its shortcuts from this computer. Your journal and tasks will stay in your user data folder."
 !define MUI_FINISHPAGE_RUN
@@ -52,6 +54,12 @@ Var RemoveOption
 Var MaintenanceDialog
 
 Function .onInit
+    ${IfNot} ${RunningX64}
+        MessageBox MB_ICONSTOP|MB_OK "Productivity requires 64-bit Windows." /SD IDOK
+        SetErrorLevel 1
+        Abort
+    ${EndIf}
+    SetRegView 64
     ReadRegStr $PreviousInstall HKCU "${APP_KEY}" "InstallLocation"
     ${GetParameters} $0
     ${GetOptions} $0 "/UNINSTALL" $1
@@ -164,7 +172,7 @@ Function EnsureWebView
     ${EndIf}
     InitPluginsDir
     SetOutPath "$PLUGINSDIR"
-    File "${PAYLOAD}/MicrosoftEdgeWebview2Setup.exe"
+    File "${PAYLOAD}\MicrosoftEdgeWebview2Setup.exe"
     DetailPrint "Installing the Microsoft Edge WebView2 Runtime"
     ClearErrors
     ExecWait '"$PLUGINSDIR\MicrosoftEdgeWebview2Setup.exe" /silent /install' $0
@@ -194,20 +202,20 @@ proceed:
     ${EndIf}
 install_files:
     SetOutPath "$INSTDIR"
-    File "${PAYLOAD}/app.py"
-    File "${PAYLOAD}/desktop_server.py"
-    File "${PAYLOAD}/desktop_accounts.py"
-    File "${PAYLOAD}/account-service.json"
-    File "${PAYLOAD}/ACCOUNTS.md"
-    File "${PAYLOAD}/windows_launcher.py"
-    File "${PAYLOAD}/import_browser_data.py"
-    File "${PAYLOAD}/README.md"
-    File "${PAYLOAD}/LICENSE"
-    File "${__FILEDIR__}/productivity.ico"
+    File "${PAYLOAD}\app.py"
+    File "${PAYLOAD}\desktop_server.py"
+    File "${PAYLOAD}\desktop_accounts.py"
+    File "${PAYLOAD}\account-service.json"
+    File "${PAYLOAD}\ACCOUNTS.md"
+    File "${PAYLOAD}\windows_launcher.py"
+    File "${PAYLOAD}\import_browser_data.py"
+    File "${PAYLOAD}\README.md"
+    File "${PAYLOAD}\LICENSE"
+    File "${__FILEDIR__}\productivity.ico"
     SetOutPath "$INSTDIR\static"
-    File /r "${PAYLOAD}/static/*"
+    File /r "${PAYLOAD}\static\*"
     SetOutPath "$INSTDIR\runtime"
-    File /r "${PAYLOAD}/runtime/*"
+    File /r "${PAYLOAD}\runtime\*"
     Call EnsureWebView
     SetOutPath "$INSTDIR"
     WriteUninstaller "$INSTDIR\UninstallProductivity.exe"
@@ -232,6 +240,10 @@ SectionEnd
     !insertmacro MUI_DESCRIPTION_TEXT ${MainSection} "Installs Productivity and the Python runtime it uses."
     !insertmacro MUI_DESCRIPTION_TEXT ${DesktopSection} "Adds a Productivity shortcut to your desktop."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
+
+Function un.onInit
+    SetRegView 64
+FunctionEnd
 
 Section "Uninstall"
     IfFileExists "$INSTDIR\runtime\pythonw.exe" 0 remove_files

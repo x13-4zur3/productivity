@@ -76,11 +76,11 @@ Run these commands from the project root. The installers go in `dist/` by defaul
 
 | Build | Tools | Command | Artifacts |
 | --- | --- | --- | --- |
-| Windows x64 | Python 3.10+, NSIS 3.11+ with the AMD64 Unicode target | `python packaging/windows/build.py` | `Productivity-Setup-x64.exe` |
+| Windows x64 | Python 3.10+, standard NSIS 3.11+ | `python packaging/windows/build.py` | `Productivity-Setup-x64.exe` |
 | macOS Apple silicon and Intel | Python 3.12+, Go 1.24+ | `python3 packaging/build_unix.py macos` | `Productivity-macOS.dmg` |
 | Linux | Python 3.10+, `dpkg-deb` | `python3 packaging/build_unix.py linux` | `productivity_1.0.0_all.deb`, `Productivity-Linux.tar.gz` |
 
-On Windows, use `py -3` if `python` is unavailable. Add NSIS to your `PATH` or pass `--makensis` with the path to its executable. The build downloads and verifies the Windows Python runtime, the pinned desktop packages, and the Microsoft WebView2 bootstrapper. Use `--python-archive` for an existing Python archive and `--desktop-cache` to reuse the desktop downloads.
+On Windows, use `py -3` if `python` is unavailable. The build looks for the NSIS compiler on `PATH` and in the standard Windows install folders. If you installed NSIS elsewhere, pass `--makensis` with the full path to `makensis.exe`. The build downloads and verifies the Windows Python runtime, the pinned desktop packages, and the Microsoft WebView2 bootstrapper. Use `--python-archive` for an existing Python archive and `--desktop-cache` to reuse the desktop downloads.
 
 The macOS build downloads and verifies both Python runtimes and the pinned desktop dependencies. It can run on macOS or Linux. Use `--runtime-cache /path/to/cache` to reuse the archives and `--go /path/to/go` if needed. Builds on macOS use the system `hdiutil` backend.
 

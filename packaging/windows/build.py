@@ -20,6 +20,23 @@ ARCHIVE = f'python-{VERSION}-embed-amd64.zip'
 CHECKSUM = '76f238f606250c87c6beac75dccd35ee99070a13490555936abb6cb64ecce3d0'
 
 
+def locate_compiler(requested):
+    compiler = shutil.which(requested or 'makensis')
+    if compiler:
+        return compiler
+    if requested is not None:
+        raise FileNotFoundError(f'Could not find the NSIS compiler at {requested!r}. Check the --makensis path.')
+    if os.name == 'nt':
+        for variable in ('ProgramFiles(x86)', 'ProgramFiles'):
+            directory = os.environ.get(variable)
+            if directory:
+                compiler = Path(directory) / 'NSIS' / 'makensis.exe'
+                if compiler.is_file():
+                    return str(compiler)
+    raise FileNotFoundError('Could not find makensis. Install NSIS 3.11 or newer, '
+                            'then add it to PATH or pass --makensis with the executable path.')
+
+
 def verified_file(entry, cache):
     path = cache / entry['filename']
     if not path.is_file():
@@ -60,6 +77,7 @@ def bundle_desktop(payload, runtime, cache):
 
 
 def build(compiler, target, archive, desktop_cache):
+    compiler = locate_compiler(compiler)
     with TemporaryDirectory(prefix='productivity-setup-') as directory:
         payload = Path(directory) / 'payload'
         runtime = payload / 'runtime'
@@ -88,7 +106,7 @@ def build(compiler, target, archive, desktop_cache):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--makensis', default='makensis')
+    parser.add_argument('--makensis', help='Path to the NSIS compiler. Defaults to PATH or a standard NSIS installation.')
     parser.add_argument('--python-archive', type=Path)
     parser.add_argument('--desktop-cache', type=Path, help='Reuse previously downloaded desktop dependencies.')
     parser.add_argument('--output', type=Path, default=ROOT / 'dist' / 'Productivity-Setup-x64.exe')
