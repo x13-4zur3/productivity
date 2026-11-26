@@ -1,6 +1,6 @@
 # Install and update
 
-Download Productivity 1.0.0 for Windows or Linux. For macOS, use the [build guide](build.md) to create a disk image.
+Download Productivity 1.0.0 for Windows, Linux, or Android. For macOS, use the [build guide](build.md) to create a disk image.
 
 === "Windows"
 
@@ -50,6 +50,16 @@ Download Productivity 1.0.0 for Windows or Linux. For macOS, use the [build guid
     ```
 
     Both builds keep local data in `$XDG_DATA_HOME/productivity/productivity.sqlite3`. The default location is `~/.local/share/productivity/productivity.sqlite3`.
+
+=== "Android"
+
+    The v1.0.0 APK is a debug build for testing on Android 7.0 or later. It supports ARM64 and x86-64 devices.
+
+    1. Download [Productivity-Android-1.0.0-debug.apk](https://github.com/x13-4zur3/productivity/releases/download/android-v1.0.0/Productivity-Android-1.0.0-debug.apk) on your device.
+    2. Open the APK. If Android prompts you, allow **Install unknown apps** for the browser or file manager you used, then return to the installer.
+    3. Tap **Install**, then open **Productivity**. Create an account, sign in, or choose **Use local data**.
+
+    To update, install a newer APK signed with the same key over the current app. Uninstalling Productivity removes the local workspace from the device.
 
 ## Next steps
 
