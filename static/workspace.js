@@ -63,6 +63,8 @@ function keepJournalSelection(event) {
 function openSourceTask(entry) {
   sourceEntry = entry.id;
   $('source-task-form').reset();
+  fieldMessage($('source-task-text'));
+  fieldMessage($('source-task-due'));
   inlineMessage('source-task-error');
   const selected = selectedJournalText(entry.id) || entry.content.split('\n').find((line) => line.trim()) || '';
   $('source-task-text').value = selected.trim().replace(/\s+/g, ' ').slice(0, 300);
@@ -100,11 +102,12 @@ function renderPlanner() {
   ];
   $('planner-days').innerHTML = groups.map(([label, tasks]) => `<section class="planner-day">
     <h3>${escape(label)} <span>${tasks.length}</span></h3>
-    ${tasks.map((task) => `<form class="planner-task" data-planner-task="${task.id}">
+    ${tasks.map((task) => `<form class="planner-task" data-planner-task="${task.id}" novalidate>
       <a href="/todos#task-${task.id}">${escape(task.text)}</a>
-      <div class="workspace-actions"><input name="due" type="date" value="${task.due_date || ''}" max="9999-12-31" required aria-label="New date for ${escape(task.text)}">
+      <div class="workspace-actions"><input name="due" type="date" value="${task.due_date || ''}" max="9999-12-31" required aria-label="New date for ${escape(task.text)}" data-error="planner-date-error-${task.id}" aria-describedby="planner-date-error-${task.id}">
       <button class="secondary" type="submit">Move</button>
       ${task.due_date && task.due_date < today ? '<button class="text-button" type="button" data-carry>Move to today</button>' : ''}</div>
+      <p id="planner-date-error-${task.id}" class="field-error" aria-live="polite" hidden></p>
     </form>`).join('') || '<p class="workspace-hint">No tasks</p>'}</section>`).join('');
 }
 
@@ -141,7 +144,11 @@ function calendarRecords(day) {
 }
 
 function calendarBadge(kind, label, count) {
-  return count ? `<span class="calendar-tag" data-kind="${kind}">${count} <span>${label}</span></span>` : '';
+  return count ? `<span class="calendar-tag" data-kind="${kind}"><span>${label}</span><b>${count}</b></span>` : '';
+}
+
+function agendaGroup(label, items) {
+  return items.length ? `<section class="agenda-group"><h3>${label}</h3>${items.join('')}</section>` : '';
 }
 
 function renderCalendar() {
@@ -154,23 +161,23 @@ function renderCalendar() {
     const day = shiftDay(start, index);
     if (day.length !== 10 || day.startsWith('0000-')) return '<span aria-hidden="true"></span>';
     const { events, tasks, entries } = calendarRecords(day);
-    const date = fullDate.format(noon(day));
+    const value = noon(day);
+    const date = fullDate.format(value);
     const label = `${date}, ${events.length} events, ${tasks.length} tasks, ${entries.length} journal entries`;
-    return `<button type="button" class="calendar-cell" data-calendar-day="${day}" data-outside="${!day.startsWith(month)}"
+    return `<button type="button" class="calendar-cell" data-calendar-day="${day}" data-outside="${!day.startsWith(month)}" data-weekend="${[0, 6].includes(value.getDay())}"
       aria-label="${escape(label)}" aria-pressed="${day === calendarDay}" ${day === today ? 'aria-current="date"' : ''}>
-      <span class="calendar-number">${noon(day).getDate()}</span><span class="calendar-tags">
+      <span class="calendar-number">${value.getDate()}</span><span class="calendar-tags">
       ${calendarBadge('event', 'Events', events.length)}${calendarBadge('task', 'Tasks', tasks.length)}${calendarBadge('journal', 'Journal', entries.length)}</span></button>`;
   });
   $('calendar-days').innerHTML = cells.join('');
   const { events, tasks, entries } = calendarRecords(calendarDay);
   $('calendar-agenda').innerHTML = [
-    ...events.map((item) => `<button type="button" class="agenda-item" data-event-id="${item.id}">
-      <span class="calendar-tag" data-kind="event">Event</span><strong>${escape(item.title)}</strong>
-      <span class="workspace-hint">${eventTime(item, calendarDay)}</span></button>`),
-    ...tasks.map((item) => `<a class="agenda-item" href="/todos#task-${item.id}"><span class="calendar-tag" data-kind="task">Task</span>
-      <strong>${escape(item.text)}</strong>${item.completed ? '<span class="workspace-hint">Completed</span>' : ''}</a>`),
-    ...entries.map((item) => `<a class="agenda-item" href="/journal#entry-${item.id}"><span class="calendar-tag" data-kind="journal">Journal</span>
-      <strong>${escape(excerpt(item.content))}</strong></a>`),
+    agendaGroup('Events', events.map((item) => `<button type="button" class="agenda-item" data-event-id="${item.id}">
+      <span class="calendar-tag" data-kind="event">${eventTime(item, calendarDay)}</span><strong>${escape(item.title)}</strong></button>`)),
+    agendaGroup('Tasks due', tasks.map((item) => `<a class="agenda-item" href="/todos#task-${item.id}"><span class="calendar-tag" data-kind="task">${item.completed ? 'Done' : 'Due'}</span>
+      <strong>${escape(item.text)}</strong></a>`)),
+    agendaGroup('Journal entries', entries.map((item) => `<a class="agenda-item" href="/journal#entry-${item.id}"><span class="calendar-tag" data-kind="journal">${escape(moods[item.mood]?.[0] || 'Entry')}</span>
+      <strong>${escape(excerpt(item.content))}</strong></a>`)),
   ].join('') || '<p class="workspace-hint">No schedules, tasks, or entries for this date.</p>';
 }
 
@@ -211,6 +218,7 @@ function openEvent(event) {
   const form = $('event-form');
   form.reset();
   for (const input of form.querySelectorAll('[name]')) input.value = event?.[input.name] ?? '';
+  for (const input of form.querySelectorAll('[data-error]')) fieldMessage(input);
   if (!event) form.elements.start_day.value = calendarDay;
   text('event-title', event ? 'Edit event' : 'New event');
   show('delete-event', Boolean(event));
@@ -222,6 +230,32 @@ function openEvent(event) {
 function excerpt(value, limit = 110) {
   const summary = value.trim().replace(/\s+/g, ' ');
   return summary.length > limit ? `${summary.slice(0, limit - 1)}…` : summary;
+}
+
+function validatedEvent(form) {
+  const { title, start_day: start, end_day: end, start_time: from, end_time: to } = form.elements;
+  for (const input of form.querySelectorAll('[data-error]')) fieldMessage(input);
+  const name = formText(title, 'Give your event a title.');
+  if (!name) return null;
+  if (!start.value || !start.validity.valid) {
+    fieldMessage(start, 'Choose a valid start date.');
+    return null;
+  }
+  if (!end.validity.valid || (end.value && end.value < start.value)) {
+    fieldMessage(end, 'Choose an end date on or after the start date.');
+    return null;
+  }
+  for (const [field, other, label] of [[from, to, 'start'], [to, from, 'end']]) {
+    if (!field.validity.valid || (other.value && !field.value)) {
+      fieldMessage(field, `Choose a valid ${label} time.`);
+      return null;
+    }
+  }
+  if ((!end.value || end.value === start.value) && from.value && to.value <= from.value) {
+    fieldMessage(to, 'Choose an end time after the start time.');
+    return null;
+  }
+  return { ...Object.fromEntries(new FormData(form)), title: name };
 }
 
 async function loadWorkspaceRecords(includeEvents) {
@@ -242,19 +276,34 @@ function renderSearchResults() {
     <span class="calendar-tag" data-kind="${item.kind}">${item.label}</span><strong>${escape(item.title)}</strong></a>`).join('');
 }
 
-async function openGlobalSearch() {
-  const dialog = $('global-search-dialog');
-  if (!currentView || dialog.open) return;
+function openGlobalSearch() {
+  if (!currentView) return;
+  const panel = $('global-search-panel');
+  if (panel.hidden) {
+    show('global-search-panel', true);
+    document.body.classList.add('search-open');
+    $('open-global-search').setAttribute('aria-expanded', 'true');
+    void refreshGlobalSearch();
+  }
+  $('global-query').focus({ preventScroll: true });
+}
+
+function closeGlobalSearch() {
+  ++searchLoad;
+  show('global-search-panel', false);
+  document.body.classList.remove('search-open');
+  $('open-global-search').setAttribute('aria-expanded', 'false');
+  $('open-global-search').focus({ preventScroll: true });
+}
+
+async function refreshGlobalSearch() {
+  const panel = $('global-search-panel');
+  if (panel.hidden) return;
   const version = ++searchLoad;
-  searchItems = null;
-  $('global-query').value = '';
-  $('global-results').replaceChildren();
-  text('global-search-status', 'Loading your workspace…');
-  dialog.showModal();
-  $('global-query').focus();
+  if (searchItems === null) text('global-search-status', 'Loading your workspace…');
   try {
     const { entries, tasks, events } = await loadWorkspaceRecords(workspaceTools);
-    if (version !== searchLoad || !dialog.open) return;
+    if (version !== searchLoad || panel.hidden) return;
     searchItems = [
       ...tasks.map((item) => ({ kind: 'task', label: 'Task', href: `/todos#task-${item.id}`, title: item.text,
         value: [item.text, item.due_date, ...item.subtasks.map((sub) => sub.text)].join(' ').toLocaleLowerCase() })),
@@ -271,6 +320,7 @@ async function openGlobalSearch() {
 
 async function refreshAfterDeletion(view) {
   homeStale = true;
+  void refreshGlobalSearch();
   if (view === 'calendar' || currentView === 'calendar') await loadCalendar();
   if (view === 'journal') await Promise.all([refresh('journal'), refresh('tasks')]);
   else if (view === 'tasks') await refresh('tasks');
@@ -331,9 +381,17 @@ function setupWorkspaceTools() {
     event.preventDefault();
     const button = $('save-source-task');
     if (button.disabled) return;
+    const name = formText($('source-task-text'), 'Give your task a name before saving.');
+    if (!name) return;
+    const due = $('source-task-due');
+    if (!due.validity.valid) {
+      fieldMessage(due, 'Choose a valid due date.');
+      return;
+    }
+    fieldMessage(due);
     button.disabled = true;
-    await mutate('tasks', '/api/tasks', 'POST', { text: $('source-task-text').value.trim(),
-      due_date: $('source-task-due').value, source_entry_id: sourceEntry }, () => {
+    await mutate('tasks', '/api/tasks', 'POST', { text: name,
+      due_date: due.value, source_entry_id: sourceEntry }, () => {
       $('source-task-dialog').close();
       notice('Task created and linked to the journal entry.');
     }, (message) => inlineMessage('source-task-error', message));
@@ -356,7 +414,13 @@ function setupWorkspaceTools() {
   }
   $('planner-days').addEventListener('submit', (event) => {
     event.preventDefault();
-    void movePlannerTask(event.target, event.target.elements.due.value);
+    const due = event.target.elements.due;
+    if (!due.value || !due.validity.valid) {
+      fieldMessage(due, 'Choose a new due date.');
+      return;
+    }
+    fieldMessage(due);
+    void movePlannerTask(event.target, due.value);
   });
   $('planner-days').addEventListener('click', (event) => {
     if (event.target.closest('a')) $('planner-dialog').close();
@@ -389,13 +453,15 @@ function setupWorkspaceTools() {
     event.preventDefault();
     const save = $('save-event');
     if (save.disabled) return;
-    save.disabled = $('delete-event').disabled = true;
     inlineMessage('event-error');
-    const data = Object.fromEntries(new FormData(event.target));
+    const data = validatedEvent(event.target);
+    if (!data) return;
+    save.disabled = $('delete-event').disabled = true;
     try {
       await request(editingEvent ? `/api/calendar/${editingEvent}` : '/api/calendar', editingEvent ? 'PATCH' : 'POST', data);
       selectCalendarDay(data.start_day);
       $('event-dialog').close();
+      void refreshGlobalSearch();
       await loadCalendar();
       notice('Event saved.');
     } catch (error) { inlineMessage('event-error', error.message); }
@@ -408,12 +474,12 @@ function setupWorkspaceTools() {
     confirmDeletion('event', event.title, () => deleteWorkspaceRecord('calendar', `/api/calendar/${event.id}`, 'Event'));
   });
   $('open-global-search').addEventListener('click', openGlobalSearch);
-  $('close-global-search').addEventListener('click', () => $('global-search-dialog').close());
+  $('close-global-search').addEventListener('click', closeGlobalSearch);
   $('global-query').addEventListener('input', renderSearchResults);
   $('global-query').addEventListener('keydown', (event) => {
     if (event.key === 'Enter') $('global-results').querySelector('a')?.click();
   });
-  $('global-results').addEventListener('click', (event) => {
-    if (event.target.closest('a')) $('global-search-dialog').close();
+  $('global-search-panel').addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeGlobalSearch();
   });
 }

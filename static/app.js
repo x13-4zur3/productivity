@@ -217,8 +217,14 @@ function setupFocus() {
   $('custom-focus').addEventListener('submit', (event) => {
     event.preventDefault();
     if ($('set-custom-focus').disabled) return;
-    const minutes = $('custom-minutes').valueAsNumber;
-    if (Number.isInteger(minutes) && minutes >= 1 && minutes <= 180) void reset(minutes);
+    const input = $('custom-minutes');
+    const minutes = input.valueAsNumber;
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 180) {
+      fieldMessage(input, 'Enter a whole number from 1 to 180 minutes.');
+      return;
+    }
+    fieldMessage(input);
+    void reset(minutes);
   });
 }
 
@@ -338,6 +344,7 @@ async function updateRecords(view, path, method, data, onSuccess) {
   onSuccess?.();
   homeStale = true;
   if (currentView === 'home') void loadHome();
+  void refreshGlobalSearch();
   await refresh(view);
 }
 

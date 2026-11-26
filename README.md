@@ -21,11 +21,11 @@ See the release notes for [Windows and Linux (`v1.0.0`)](https://github.com/x13-
 
 ## What’s new in Windows and Linux 1.2.0
 
-- **Calendar** puts your scheduled events, task due dates, and journal entries on the same month view. Select a date to see its agenda or add an all-day or timed event.
+- **Calendar** uses separate markers for events, tasks due, and journal entries. Select a date for its grouped agenda or add an all-day or timed event.
 - **Weekly planner** groups tasks by day, shows overdue and unscheduled work, and lets you move a deadline or carry a task to today.
 - **Journal-to-task links** let you select text in a saved entry and choose **Create task**. Open **Source journal entry** on the task to return to it.
-- **Search everything** finds journal entries, tasks, subtasks, and calendar events. Open it from the toolbar or with **Ctrl+K**.
-- **Pink** joins the appearance options. Set a custom focus duration from **1 to 180 minutes**.
+- **Search everything** finds journal entries, tasks, subtasks, and calendar events in a side panel you can keep open while you work. Open it from the toolbar or with **Ctrl+K**.
+- **Pink** joins the appearance options. Docs, Docs Dark, Pink, and High Contrast use the Courier Prime typewriter font. Set a custom focus duration from **1 to 180 minutes**.
 - **Undo** appears in the bottom-right corner for **30 seconds** after a deletion. You can dismiss the notice early.
 
 Signed-in workspaces receive the new tools after the account service is updated to the 1.2.0 server code. Local Windows and Linux workspaces get the tools when the app is updated.

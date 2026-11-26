@@ -429,6 +429,10 @@ class Handler(BaseHTTPRequestHandler):
         '/settings.js': ('settings.js', 'text/javascript'),
         '/accounts.js': ('accounts.js', 'text/javascript'),
         '/workspace.js': ('workspace.js', 'text/javascript'),
+        '/fonts/courier-prime-regular.woff2': ('fonts/courier-prime-regular.woff2', 'font/woff2'),
+        '/fonts/courier-prime-regular-ext.woff2': ('fonts/courier-prime-regular-ext.woff2', 'font/woff2'),
+        '/fonts/courier-prime-bold.woff2': ('fonts/courier-prime-bold.woff2', 'font/woff2'),
+        '/fonts/courier-prime-bold-ext.woff2': ('fonts/courier-prime-bold-ext.woff2', 'font/woff2'),
     }
 
     @property
