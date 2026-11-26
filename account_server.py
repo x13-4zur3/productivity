@@ -296,7 +296,7 @@ def serve(database, host, port, registration):
         listener.serve_forever()
 
 
-def main():
+def main(serve_service=serve):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
     run = commands.add_parser('serve', help='Start the accounts API.')
@@ -317,7 +317,7 @@ def main():
     try:
         database.initialize()
         if args.command == 'serve':
-            serve(database, args.host, args.port, args.allow_registration)
+            serve_service(database, args.host, args.port, args.allow_registration)
         elif args.command == 'init-db':
             print('Productivity database is ready.')
         else:
