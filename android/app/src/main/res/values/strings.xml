@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Productivity</string>
+    <string name="opening">Opening Productivity…</string>
+    <string name="open_error">Productivity could not open.</string>
+    <string name="retry">Try again</string>
+</resources>

@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="A local journal and to-do list for everyday reflection and planning.">
+  <title>Productivity</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/settings.js" defer></script>
+  <script src="/accounts.js" defer></script>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"><i></i><i></i></span>Productivity</a>
+      <nav aria-label="Main navigation">
+        <a href="/" id="nav-home"><i class="icon icon-home" aria-hidden="true"></i>Home</a>
+        <a href="/journal" id="nav-journal"><i class="icon icon-book" aria-hidden="true"></i>Journal</a>
+        <a href="/todos" id="nav-tasks"><i class="icon icon-check" aria-hidden="true"></i>To-do list</a>
+      </nav>
+      <div class="rail-controls">
+        <button type="button" class="settings-button" id="open-settings" aria-label="Settings" aria-haspopup="dialog">
+          <i class="icon icon-settings" aria-hidden="true">⚙</i><span>Settings</span>
+        </button>
+        <details class="theme-picker" id="theme-picker">
+          <summary class="theme-button" aria-label="Appearance"><i class="icon icon-theme" aria-hidden="true"></i><span id="theme-label">Docs</span><i class="chevron" aria-hidden="true"></i></summary>
+          <div class="theme-options" role="group" aria-label="Choose a theme">
+            <button type="button" data-theme-option="light" aria-pressed="false"><i class="theme-swatch swatch-light" aria-hidden="true"></i>Docs</button>
+            <button type="button" data-theme-option="dark" aria-pressed="false"><i class="theme-swatch swatch-dark" aria-hidden="true"></i>Docs Dark</button>
+            <button type="button" data-theme-option="terminal" aria-pressed="false"><i class="theme-swatch swatch-terminal" aria-hidden="true"></i>Terminal</button>
+            <button type="button" data-theme-option="contrast" aria-pressed="false"><i class="theme-swatch swatch-contrast" aria-hidden="true"></i>High Contrast</button>
+          </div>
+        </details>
+      </div>
+    </div>
+  </header>
+
+  <main class="workspace" id="main" tabindex="-1">
+    <div id="home-view" hidden>
+      <header class="home-header">
+        <div>
+          <time id="home-date"></time>
+          <h1 id="home-greeting" tabindex="-1">Welcome home.</h1>
+          <p id="home-note"></p>
+        </div>
+        <div class="home-actions">
+          <a class="primary" href="/journal?compose=1">Write an entry</a>
+          <a class="secondary" href="/todos?compose=1">Add a task</a>
+        </div>
+      </header>
+
+      <div class="home-grid">
+        <section class="card home-card" aria-labelledby="today-title">
+          <header class="home-card-heading">
+            <span class="section-icon" aria-hidden="true"><i class="icon icon-check"></i></span>
+            <h2 id="today-title">Task overview</h2>
+            <a class="text-button" href="/todos">All tasks <span aria-hidden="true">→</span></a>
+          </header>
+          <dl class="home-counts">
+            <div><dt>Due or overdue</dt><dd id="home-due">–</dd></div>
+            <div><dt>Active</dt><dd id="home-active">–</dd></div>
+            <div><dt>Completed</dt><dd id="home-completed">–</dd></div>
+          </dl>
+          <ul id="home-tasks" class="home-tasks"></ul>
+          <p id="home-empty-tasks" hidden>Nothing on the list yet. Add a task to plan what’s next.</p>
+        </section>
+
+        <section class="card home-card focus-card" aria-labelledby="focus-title">
+          <header class="home-card-heading">
+            <span class="section-icon" aria-hidden="true"><i class="icon icon-clock"></i></span>
+            <h2 id="focus-title">Focus timer</h2>
+          </header>
+          <div class="focus-display" id="focus-display">
+            <div class="focus-track">
+              <span id="focus-time" role="timer" aria-label="Time remaining">25:00</span>
+              <span id="focus-label">Ready to focus</span>
+            </div>
+          </div>
+          <div class="focus-controls">
+            <div class="focus-presets" id="focus-presets" role="group" aria-label="Focus duration">
+              <button type="button" data-minutes="5" aria-pressed="false">5 min</button>
+              <button type="button" data-minutes="15" aria-pressed="false">15 min</button>
+              <button type="button" data-minutes="25" aria-pressed="true">25 min</button>
+            </div>
+            <div class="focus-actions">
+              <button type="button" class="secondary" id="reset-focus">Reset</button>
+              <button type="button" class="primary" id="toggle-focus">Start</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="card home-card" aria-labelledby="activity-title">
+          <header class="home-card-heading">
+            <span class="section-icon" aria-hidden="true"><i class="icon icon-book"></i></span>
+            <h2 id="activity-title">Journal activity</h2>
+            <a class="text-button" href="/journal">Journal <span aria-hidden="true">→</span></a>
+          </header>
+          <p class="home-card-note" id="activity-summary">Last seven days</p>
+          <ol class="activity-days" id="activity-days" aria-label="Journal entries by day"></ol>
+          <div class="latest-entry" id="latest-entry" hidden>
+            <p class="home-card-note" id="latest-entry-date"></p>
+            <p id="latest-entry-excerpt"></p>
+          </div>
+        </section>
+
+        <section class="card home-card prompt-card" aria-labelledby="prompt-title">
+          <header class="home-card-heading">
+            <span class="section-icon" aria-hidden="true">✎</span>
+            <h2 id="prompt-title">Writing prompt</h2>
+          </header>
+          <p id="writing-prompt" aria-live="polite"></p>
+          <div class="prompt-actions">
+            <button type="button" class="secondary" id="next-prompt">Try another</button>
+            <a class="text-button" id="use-prompt" href="/journal?compose=1">Write about it <span aria-hidden="true">→</span></a>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div id="work-view" hidden>
+      <header class="page-heading">
+        <div>
+          <h1 id="page-title" tabindex="-1">Journal</h1>
+          <p id="page-description">Write a reflection, log how you feel, and find it again by mood or tag.</p>
+        </div>
+        <button class="primary quick-create" id="quick-create" type="button">
+          <span aria-hidden="true">+</span> <span id="quick-create-label">New entry</span>
+        </button>
+      </header>
+      <div class="layout">
+        <div class="main-column">
+          <section class="card composer" id="journal-compose" aria-labelledby="journal-form-title" hidden>
+            <header class="section-heading"><span class="section-icon" aria-hidden="true">✎</span><h2 id="journal-form-title">New entry</h2></header>
+            <form id="entry-form" novalidate>
+              <label class="sr-only" for="entry-content">Journal entry</label>
+              <p id="entry-prompt" class="entry-prompt" hidden></p>
+              <textarea id="entry-content" name="content" required maxlength="50000" data-error="entry-error" aria-describedby="entry-error" placeholder="What’s on your mind?"></textarea>
+              <p class="field-error" id="entry-error" aria-live="polite" hidden></p>
+              <fieldset class="mood-field">
+                <legend>How are you feeling?</legend>
+                <div class="mood-options">
+                  <label class="mood-option"><input type="radio" name="mood" value="happy"><span><code class="mood-sign" aria-hidden="true">:D</code>Happy</span></label>
+                  <label class="mood-option"><input type="radio" name="mood" value="neutral" checked><span><code class="mood-sign" aria-hidden="true">:|</code>Neutral</span></label>
+                  <label class="mood-option"><input type="radio" name="mood" value="sad"><span><code class="mood-sign" aria-hidden="true">:(</code>Sad</span></label>
+                  <label class="mood-option"><input type="radio" name="mood" value="loved"><span><code class="mood-sign" aria-hidden="true">&lt;3</code>Loved</span></label>
+                </div>
+              </fieldset>
+              <div class="tag-editor">
+                <label class="field-label" for="new-tag">Tags <small>optional</small></label>
+                <div class="inline-input"><input type="text" id="new-tag" maxlength="40" aria-label="New tag" aria-describedby="tag-error" data-error="tag-error" placeholder="Add a tag…"><button class="secondary" type="button" id="add-tag">Add tag</button></div>
+                <p class="field-error" id="tag-error" aria-live="polite" hidden></p>
+                <div id="draft-tags" class="chips" aria-label="Entry tags"></div>
+              </div>
+              <div class="form-footer">
+                <span class="key-hint" aria-hidden="true" id="save-shortcut"></span>
+                <button class="secondary" id="cancel-entry" type="button" hidden>Cancel</button>
+                <button class="primary" type="submit" id="save-entry">Save entry</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="card composer" id="task-compose" aria-labelledby="task-form-title" hidden>
+            <header class="section-heading"><span class="section-icon" aria-hidden="true">+</span><h2 id="task-form-title">New task</h2></header>
+            <form id="task-form" novalidate>
+              <label class="field-label" for="task-text">Task name</label>
+              <input type="text" id="task-text" name="text" required maxlength="300" aria-describedby="task-text-error" data-error="task-text-error" placeholder="What do you need to do?">
+              <p class="field-error" id="task-text-error" aria-live="polite" hidden></p>
+              <details class="task-options" id="task-options">
+                <summary>Due date, priority, repeat</summary>
+                <div class="task-fields">
+                  <div><label for="task-due">Due date</label><input id="task-due" type="date" name="due_date" max="9999-12-31" aria-describedby="task-date-error" data-error="task-date-error"><p class="field-error" id="task-date-error" aria-live="polite" hidden></p></div>
+                  <div><label for="task-priority">Priority</label><select id="task-priority" name="priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
+                  <div><label for="task-repeat">Repeat</label><select id="task-repeat" name="cadence"><option value="none">Never</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
+                </div>
+              </details>
+              <div class="form-footer"><span class="key-hint" aria-hidden="true" id="task-save-shortcut"></span><button class="secondary" id="cancel-task" type="button" hidden>Cancel</button><button class="primary" type="submit" id="save-task">Add task</button></div>
+            </form>
+          </section>
+
+          <section class="history" aria-labelledby="list-heading">
+            <div class="history-heading">
+              <h2 id="list-heading" tabindex="-1">Entries</h2>
+              <label class="search" id="search-control" hidden><i class="icon icon-search" aria-hidden="true"></i><span class="sr-only">Search entries</span><input type="search" id="search" placeholder="Search entries…"></label>
+              <div id="task-controls" hidden>
+                <label class="sr-only" for="task-sort">Sort tasks</label>
+                <select id="task-sort"><option value="date">Date created</option><option value="priority">Priority</option><option value="dueDate">Due date</option></select>
+              </div>
+            </div>
+            <div class="filter-controls" id="journal-filters" hidden>
+              <label class="sr-only" for="mood-filter">Filter by mood</label>
+              <select id="mood-filter"><option value="">All moods</option><option value="happy">Happy</option><option value="neutral">Neutral</option><option value="sad">Sad</option><option value="loved">Loved</option></select>
+              <details class="tag-filters" id="tag-filters" hidden>
+                <summary>Tags <span id="tag-filter-count" hidden></span></summary>
+                <div class="chips" id="tag-options" role="group" aria-label="Filter by tag"></div>
+              </details>
+              <button type="button" class="text-button" id="clear-filters" hidden>Clear filters</button>
+            </div>
+            <div id="task-filters" class="filter-controls" role="group" aria-label="Filter tasks" hidden>
+              <button type="button" data-status="all" aria-pressed="true">All</button><button type="button" data-status="active" aria-pressed="false">Active</button><button type="button" data-status="completed" aria-pressed="false">Completed</button>
+            </div>
+            <div id="journal-records" class="records" aria-busy="true" hidden></div>
+            <div id="task-records" class="records" aria-busy="true" hidden></div>
+          </section>
+        </div>
+
+        <aside class="side-column" aria-label="Overview">
+          <section class="clock-card" aria-label="Local time">
+            <div class="clock-heading"><i class="icon icon-clock" aria-hidden="true"></i>Local time</div>
+            <time id="clock-time" class="clock-time">00:00:00</time>
+            <p id="clock-date" class="clock-date"></p>
+          </section>
+          <section class="card sidebar-card" aria-labelledby="stats-title">
+            <h2 id="stats-title">Journal stats</h2>
+            <dl class="stats">
+              <div><dt id="first-stat-label">Total entries</dt><dd id="first-stat">–</dd></div>
+              <div><dt id="second-stat-label">This month</dt><dd id="second-stat">–</dd></div>
+            </dl>
+            <div class="completion-progress" id="completion-progress" hidden>
+              <div><label for="task-progress">Completion</label><span id="task-progress-label"></span></div>
+              <progress id="task-progress" value="0" max="1"></progress>
+            </div>
+          </section>
+          <section class="card sidebar-card" id="reminders" aria-labelledby="reminders-title" hidden>
+            <h2 id="reminders-title">Reminders</h2>
+            <div id="due-tasks"></div>
+            <button class="secondary reminder-button" type="button" id="enable-reminders" hidden>Enable desktop alerts</button>
+          </section>
+        </aside>
+      </div>
+    </div>
+    <footer class="app-footer">
+      <span class="storage-note"><i class="icon icon-storage" aria-hidden="true"></i>Saved on this device</span>
+      <a class="text-button" id="footer-focus" href="/#focus-title" hidden></a>
+    </footer>
+  </main>
+  <dialog class="app-dialog settings-dialog" id="settings-dialog" aria-labelledby="settings-title">
+    <form id="settings-form" novalidate>
+      <header class="dialog-header">
+        <h2 id="settings-title">Settings</h2>
+        <button class="dialog-close" id="close-settings" type="button" aria-label="Close settings">×</button>
+      </header>
+      <div class="settings-tabs" role="tablist" aria-label="Settings sections">
+        <button type="button" id="general-tab" role="tab" aria-selected="true" aria-controls="general-settings" data-tab="general">General</button>
+        <button type="button" id="appearance-tab" role="tab" aria-selected="false" aria-controls="appearance-settings" data-tab="appearance" tabindex="-1">Appearance</button>
+        <button type="button" id="shortcuts-tab" role="tab" aria-selected="false" aria-controls="shortcuts-settings" data-tab="shortcuts" tabindex="-1">Shortcuts</button>
+        <button type="button" id="account-tab" role="tab" aria-selected="false" aria-controls="account-settings" data-tab="account" tabindex="-1">Account</button>
+      </div>
+      <div class="settings-content">
+        <section id="general-settings" role="tabpanel" aria-labelledby="general-tab">
+          <div class="setting-row"><div><label for="display-name">Display name</label><p id="display-name-help">Shown in your greeting on Home.</p></div>
+            <input type="text" id="display-name" maxlength="40" autocomplete="off" placeholder="Optional" aria-describedby="display-name-help"></div>
+          <div class="setting-row"><div><label for="start-page">Start page</label><p>Where Productivity opens each time.</p></div>
+            <select id="start-page"><option value="home">Home</option><option value="journal">Journal</option><option value="tasks">To-do list</option></select></div>
+        </section>
+        <section id="appearance-settings" role="tabpanel" aria-labelledby="appearance-tab" hidden>
+          <div class="setting-row"><div><label for="settings-theme">Theme</label><p>Applies to every view and dialog.</p></div>
+            <select id="settings-theme"><option value="light">Docs</option><option value="dark">Docs Dark</option><option value="terminal">Terminal</option><option value="contrast">High Contrast</option></select></div>
+          <div class="setting-row"><div><label for="motion-setting">Motion</label><p>Control animations and page transitions.</p></div>
+            <select id="motion-setting"><option value="system">Follow system</option><option value="reduce">Reduce motion</option></select></div>
+        </section>
+        <section id="shortcuts-settings" role="tabpanel" aria-labelledby="shortcuts-tab" hidden>
+          <p class="shortcut-help" id="shortcut-help">Select a shortcut, then press a combination with Ctrl, Alt, or Command. Esc cancels recording.</p>
+          <div id="shortcut-list"></div>
+          <p class="field-error" id="shortcut-error" role="alert" hidden></p>
+          <button type="button" class="text-button" id="reset-shortcuts">Restore defaults</button>
+        </section>
+        <section id="account-settings" role="tabpanel" aria-labelledby="account-tab" hidden>
+          <dl class="account-status">
+            <div><dt>Workspace</dt><dd id="account-workspace">Local data</dd></div>
+            <div id="account-server-row" hidden><dt>Server</dt><dd id="account-details-server"></dd></div>
+          </dl>
+          <div class="account-actions">
+            <button type="button" class="primary" id="account-connect">Connect to a server</button>
+            <button type="button" class="secondary" id="account-logout" hidden>Sign out</button>
+            <button type="button" class="secondary" id="settings-use-local" hidden>Use local data</button>
+          </div>
+        </section>
+      </div>
+      <p class="field-error dialog-error" id="settings-error" role="alert" hidden></p>
+      <footer class="dialog-footer">
+        <button type="button" class="secondary" id="cancel-settings">Cancel</button>
+        <button type="submit" class="primary" id="save-settings">Save changes</button>
+      </footer>
+    </form>
+  </dialog>
+  <dialog class="app-dialog account-dialog" id="account-dialog" aria-labelledby="account-title">
+    <form id="account-form" novalidate>
+      <header class="dialog-header">
+        <div><h2 id="account-title">Sign in</h2><p id="account-description">Connect to the server that holds your Productivity account.</p></div>
+        <button class="dialog-close" id="close-account" type="button" aria-label="Close account dialog">×</button>
+      </header>
+      <div class="account-fields">
+        <div id="account-address-field"><label class="field-label" for="account-server">Server address</label>
+          <input type="url" id="account-server" autocomplete="url" placeholder="https://accounts.example.com" required aria-describedby="account-server-error" data-error="account-server-error">
+          <p class="field-error" id="account-server-error" aria-live="polite" hidden></p></div>
+        <div><label class="field-label" for="account-username">Username</label>
+          <input type="text" id="account-username" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="32" required aria-describedby="account-username-error" data-error="account-username-error">
+          <p class="field-error" id="account-username-error" aria-live="polite" hidden></p></div>
+        <div><label class="field-label" for="account-password">Password</label>
+          <input type="password" id="account-password" autocomplete="current-password" maxlength="128" required aria-describedby="account-password-error" data-error="account-password-error">
+          <p class="field-error" id="account-password-error" aria-live="polite" hidden></p></div>
+        <p class="account-progress" id="account-progress" role="status" hidden></p>
+        <p class="field-error" id="account-error" role="alert" hidden></p>
+        <button type="button" class="text-button" id="account-toggle">Create an account</button>
+      </div>
+      <footer class="dialog-footer">
+        <button type="button" class="secondary" id="account-use-local">Use local data</button>
+        <button type="submit" class="primary" id="account-submit">Sign in</button>
+      </footer>
+    </form>
+  </dialog>
+  <dialog class="app-dialog delete-dialog" id="delete-dialog" role="alertdialog" aria-labelledby="delete-title" aria-describedby="delete-description">
+    <header class="dialog-header">
+      <span class="delete-symbol" aria-hidden="true">!</span>
+      <div><h2 id="delete-title"></h2><p id="delete-description"></p></div>
+    </header>
+    <p class="delete-preview" id="delete-preview" hidden></p>
+    <p class="field-error dialog-error" id="delete-error" role="alert" hidden></p>
+    <footer class="dialog-footer">
+      <button type="button" class="secondary" id="cancel-delete" autofocus>Cancel</button>
+      <button type="button" class="danger-button" id="confirm-delete">Delete</button>
+    </footer>
+  </dialog>
+  <div id="notice" class="notice" hidden>
+    <span id="notice-mark" class="notice-mark" aria-hidden="true"></span>
+    <span id="notice-message" role="status"></span>
+    <button type="button" id="dismiss-notice" class="dialog-close" aria-label="Dismiss notification">×</button>
+  </div>
+  <noscript><p class="no-script">Enable JavaScript to use the journal and to-do list.</p></noscript>
+</body>
+</html>
