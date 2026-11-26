@@ -4,18 +4,33 @@ hide:
   - toc
 ---
 
-<section class="docs-hero" aria-labelledby="intro-heading">
+<section class="docs-hero" aria-labelledby="intro-heading" markdown="block">
+
   <div class="docs-intro">
     <h1 id="intro-heading">Productivity<br><span>documentation</span></h1>
     <p>Learn to install Productivity, keep a journal, plan tasks, and run focus sessions.</p>
     <a class="docs-primary" href="install/">Get started</a>
   </div>
-  <aside class="docs-release" aria-labelledby="release-heading">
-    <h2 id="release-heading">Windows release</h2>
-    <p class="docs-version">v1.0.0</p>
+
+<aside class="docs-release" aria-labelledby="release-heading" markdown="block">
+
+<h2 id="release-heading">Downloads</h2>
+<p class="docs-version">v1.0.0</p>
+
+=== "Windows"
+
     <p class="docs-platform">Windows 10 or 11 · x64</p>
-    <a href="https://github.com/x13-4zur3/productivity/releases/download/v1.0.0/Productivity-Setup-x64.exe">Download installer <span aria-hidden="true">↓</span></a>
-  </aside>
+
+    [Download Windows installer (.exe)](https://github.com/x13-4zur3/productivity/releases/download/v1.0.0/Productivity-Setup-x64.exe)
+
+=== "Linux"
+
+    [Download Debian / Ubuntu package (.deb)](https://github.com/x13-4zur3/productivity/releases/download/v1.0.0/productivity_1.0.0_all.deb)
+
+    [Download portable archive (.tar.gz)](https://github.com/x13-4zur3/productivity/releases/download/v1.0.0/Productivity-Linux.tar.gz)
+
+</aside>
+
 </section>
 
 ## Browse the guides
@@ -23,7 +38,7 @@ hide:
 <div class="docs-cards">
   <a href="install/" class="docs-card">
     <span class="docs-card-title">Install &amp; update</span>
-    <span class="docs-card-description">Set up Productivity on Windows or build it for macOS and Linux.</span>
+    <span class="docs-card-description">Install on Windows and Linux, or build Productivity for macOS.</span>
   </a>
   <a href="use/" class="docs-card">
     <span class="docs-card-title">Journal, tasks &amp; focus</span>
