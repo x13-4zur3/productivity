@@ -1,6 +1,6 @@
 # Install and update
 
-Productivity 1.0.0 has a public Windows installer. Build the macOS and Linux installers from the same source using the [build guide](build.md).
+Download Productivity 1.0.0 for Windows or Linux. For macOS, use the [build guide](build.md) to create a disk image.
 
 === "Windows"
 
@@ -29,9 +29,9 @@ Productivity 1.0.0 has a public Windows installer. Build the macOS and Linux ins
 
 === "Linux"
 
-    Follow [Build the installers](build.md#build-the-installers) to create the Debian package or the portable archive.
+    **Debian and Ubuntu package**
 
-    On Debian 12+, Ubuntu 22.04+, or a compatible distribution, install the package and its dependencies from the folder containing the `.deb`.
+    On Debian 12+, Ubuntu 22.04+, or a compatible distribution, download [productivity_1.0.0_all.deb](https://github.com/x13-4zur3/productivity/releases/download/v1.0.0/productivity_1.0.0_all.deb). Install the package and its dependencies from your download folder.
 
     ```bash
     sudo apt install ./productivity_1.0.0_all.deb
@@ -39,7 +39,9 @@ Productivity 1.0.0 has a public Windows installer. Build the macOS and Linux ins
 
     Open **Productivity** from the app launcher or run `productivity` from a graphical session. To uninstall the Debian package, run `sudo apt remove productivity`.
 
-    The portable build requires Python 3.10+, Python GObject bindings, GTK 3, and WebKitGTK bindings for API 4.1 or 4.0. Launch it from a graphical session.
+    **Portable archive**
+
+    Download [Productivity-Linux.tar.gz](https://github.com/x13-4zur3/productivity/releases/download/v1.0.0/Productivity-Linux.tar.gz). The portable build requires Python 3.10+, Python GObject bindings, GTK 3, and WebKitGTK bindings for API 4.1 or 4.0. Launch it from a graphical session.
 
     ```bash
     tar -xzf Productivity-Linux.tar.gz
