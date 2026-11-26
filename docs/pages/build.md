@@ -1,6 +1,6 @@
 # Build from source
 
-Use the [`v1.0.0` tag](https://github.com/x13-4zur3/productivity/tree/v1.0.0) to build this version. Run the platform command from the project root.
+Use the [`v1.0.0` tag](https://github.com/x13-4zur3/productivity/tree/v1.0.0) for the desktop builds. Run the desktop commands from the project root.
 
 ## Run the desktop app from source
 
@@ -61,3 +61,23 @@ Use the [`v1.0.0` tag](https://github.com/x13-4zur3/productivity/tree/v1.0.0) to
     ```
 
 For a hosted-account build, set the public HTTPS address in `account-service.json` before building. See [Host the account service](hosting.md) and the [release checklist](https://github.com/x13-4zur3/productivity/blob/v1.0.0/RELEASE.md).
+
+## Build the Android APK
+
+To build the current `main` branch, open [Build Productivity Android APK](https://github.com/x13-4zur3/productivity/actions/workflows/build-android.yml) in GitHub Actions and select **Run workflow**. Download the debug APK from **Artifacts** when the run succeeds.
+
+To build v1.0.0 locally, check out the [`android-v1.0.0` tag](https://github.com/x13-4zur3/productivity/tree/android-v1.0.0). Set up Java 21, Python 3.13, Android SDK Platform 36, and Build Tools 35.0.0. Run the Gradle wrapper from the `android/` directory.
+
+=== "Windows"
+
+    ```powershell
+    .\gradlew.bat :app:assembleDebug
+    ```
+
+=== "macOS or Linux"
+
+    ```bash
+    ./gradlew :app:assembleDebug
+    ```
+
+The APK is saved to `android/app/build/outputs/apk/debug/app-debug.apk`. Select **Android** in [Install and update](install.md) for installation steps.
