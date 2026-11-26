@@ -2,6 +2,8 @@
 
 Productivity is a journal, task list, and focus timer for desktop and Android. Home shows what’s due, your journal activity, and a writing prompt. Choose Docs, Docs Dark, Terminal, or High Contrast from the appearance menu.
 
+Open the installable [Productivity web app](https://productivity-accounts.onrender.com).
+
 This Python port is based on the original app by azure069. Local work and preferences are saved to SQLite. You can also sign in to a PostgreSQL-backed Productivity account. [Original repository](https://github.com/x13-4zur3/productivity)
 
 Installation, usage, and account setup guides are available on [Read the Docs](https://productivity.readthedocs.io/en/latest/).
