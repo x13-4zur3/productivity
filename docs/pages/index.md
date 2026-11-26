@@ -29,6 +29,12 @@ hide:
 
     [Download portable archive (.tar.gz)](https://github.com/x13-4zur3/productivity/releases/download/v1.0.0/Productivity-Linux.tar.gz)
 
+=== "Android"
+
+    <p class="docs-platform">Android 7.0+ · ARM64 or x86-64</p>
+
+    [Download Android test APK (.apk)](https://github.com/x13-4zur3/productivity/releases/download/android-v1.0.0/Productivity-Android-1.0.0-debug.apk)
+
 </aside>
 
 </section>
@@ -38,7 +44,7 @@ hide:
 <div class="docs-cards">
   <a href="install/" class="docs-card">
     <span class="docs-card-title">Install &amp; update</span>
-    <span class="docs-card-description">Install on Windows and Linux, or build Productivity for macOS.</span>
+    <span class="docs-card-description">Install on Windows, Linux, or Android, or build Productivity for macOS.</span>
   </a>
   <a href="use/" class="docs-card">
     <span class="docs-card-title">Journal, tasks &amp; focus</span>
@@ -46,11 +52,11 @@ hide:
   </a>
   <a href="accounts/" class="docs-card">
     <span class="docs-card-title">Accounts &amp; data</span>
-    <span class="docs-card-description">Sign in across devices or keep your workspace on one computer.</span>
+    <span class="docs-card-description">Sign in across devices or keep your workspace on one device.</span>
   </a>
 </div>
 
 ## Build and maintain Productivity
 
-- [Build and run from source](build.md) on Windows, macOS, or Linux.
+- [Build and run from source](build.md) for desktop or Android.
 - [Host the account service](hosting.md) with Render and Neon or on your own server.
