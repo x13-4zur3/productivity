@@ -119,6 +119,11 @@
 }
 
 .docs-release {
+  --md-default-fg-color: #edf8f3;
+  --md-default-fg-color--light: #c0d6d0;
+  --md-default-fg-color--lightest: #486765;
+  --md-accent-fg-color: #a4ebd1;
+  --md-typeset-a-color: #a4ebd1;
   min-width: 0;
   padding: 1rem;
   border: 1px solid #64827b;
@@ -147,14 +152,19 @@
   font-size: .7rem;
 }
 
+.md-typeset .docs-release .tabbed-set {
+  margin: .4rem 0 0;
+}
+
+.md-typeset .docs-release .tabbed-block > p {
+  margin: .55rem 0 0;
+}
+
 .md-typeset .docs-release a {
-  display: flex;
-  justify-content: space-between;
-  gap: .5rem;
-  margin-top: .8rem;
-  padding-top: .7rem;
-  border-top: 1px solid #486765;
+  display: inline-block;
+  padding-block: .2rem;
   color: #a4ebd1;
+  font-size: .75rem;
   font-weight: 700;
 }
 
