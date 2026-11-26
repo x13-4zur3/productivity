@@ -198,6 +198,9 @@ class AccountHandler(Handler):
     def parse_request(self):
         if not super().parse_request():
             return False
+        return self.authorize_request()
+
+    def authorize_request(self):
         path = urlsplit(self.path).path
         if self.headers.get('Origin'):
             self.send_json(403, {'error': 'Open Productivity in the desktop app.'})
@@ -232,6 +235,7 @@ class AccountHandler(Handler):
         if path not in self.auth_paths:
             super().mutate()
             return
+
         database = self.server.database
         if path == '/api/auth/logout':
             token = self.bearer()
@@ -239,6 +243,7 @@ class AccountHandler(Handler):
                 database.revoke_session(token)
             self.send_json(200, {'ok': True})
             return
+
         register = path == '/api/auth/register'
         if register and not self.server.allow_registration:
             self.send_json(403, {'error': 'Registration is closed. Ask the server administrator to create your account.'})
@@ -250,11 +255,13 @@ class AccountHandler(Handler):
         except InputError as error:
             self.send_json(400 if register else 401, {'error': str(error) if register else 'Incorrect username or password.'})
             return
+
         limiter = self.server.login_limiter
         if (not limiter.allow(('address', self.client_address[0]), ('username', username))
                 or not limiter.password_workers.acquire(blocking=False)):
             self.send_json(429, {'error': 'Too many sign-in attempts. Try again in a moment.'})
             return
+
         try:
             if register:
                 user_id, digest = database.create_user(username, password)
@@ -264,15 +271,20 @@ class AccountHandler(Handler):
                     self.send_json(401, {'error': 'Incorrect username or password.'})
                     return
                 user_id, digest = user['id'], user['password_hash']
+
             token = database.issue_session(user_id, digest)
             if token is None:
                 self.send_json(401, {'error': 'Sign in again with your current password.'})
                 return
-            self.send_json(201 if register else 200, {'username': username, 'token': token})
+
+            self.send_login_success(201 if register else 200, username, token)
         except InputError as error:
             self.send_json(409, {'error': str(error)})
         finally:
             limiter.password_workers.release()
+
+    def send_login_success(self, status, username, token):
+        self.send_json(status, {'username': username, 'token': token})
 
 
 def serve(database, host, port, registration):
