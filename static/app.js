@@ -1,8 +1,8 @@
 'use strict';
 
 const $ = (id) => document.getElementById(id);
-const routes = { home: '/', journal: '/journal', tasks: '/todos' };
-const routeViews = { '/': 'home', '/journal': 'journal', '/todos': 'tasks' };
+const routes = { home: '/', journal: '/journal', tasks: '/todos', calendar: '/calendar' };
+const routeViews = { '/': 'home', '/journal': 'journal', '/todos': 'tasks', '/calendar': 'calendar' };
 const lists = { journal: 'journal-records', tasks: 'task-records' };
 const reports = { journal: null, tasks: null };
 const reportVersions = { journal: 0, tasks: 0 };
@@ -10,7 +10,7 @@ const pendingReports = {};
 const motionQuery = matchMedia('(prefers-reduced-motion: reduce)');
 const moods = { happy: ['Happy', ':D'], neutral: ['Neutral', ':|'], sad: ['Sad', ':('], loved: ['Loved', '<3'] };
 const priorities = { low: 'Low', medium: 'Medium', high: 'High' };
-const themes = { light: 'Docs', dark: 'Docs Dark', terminal: 'Terminal', contrast: 'High Contrast' };
+const themes = { light: 'Docs', dark: 'Docs Dark', terminal: 'Terminal', contrast: 'High Contrast', pink: 'Pink' };
 const mediumDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
 const fullDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'full' });
 const weekday = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
@@ -177,6 +177,7 @@ function renderFocus() {
     });
     $('toggle-focus').disabled = savingFocus;
     $('reset-focus').disabled = savingFocus;
+    $('set-custom-focus').disabled = running || savingFocus;
   }
   if (complete && focus.endsAt && !savingFocus) {
     notice('Focus session complete. Take a breath :)');
@@ -213,12 +214,21 @@ function setupFocus() {
     const minutes = Number(event.target.dataset.minutes);
     if (minutes) void reset(minutes);
   });
+  $('custom-focus').addEventListener('submit', (event) => {
+    event.preventDefault();
+    if ($('set-custom-focus').disabled) return;
+    const minutes = $('custom-minutes').valueAsNumber;
+    if (Number.isInteger(minutes) && minutes >= 1 && minutes <= 180) void reset(minutes);
+  });
 }
 
 async function loadPreferences() {
   try {
     const saved = await request('/api/preferences');
-    if (saved.focus) focus = saved.focus;
+    if (saved.focus) {
+      focus = saved.focus;
+      if (![5, 15, 25].includes(focus.minutes)) $('custom-minutes').value = focus.minutes;
+    }
     const legacy = accountState.server ? null : getPreference('theme');
     const theme = saved.theme || (Object.hasOwn(themes, legacy) ? legacy : 'light');
     const { name = accountState.username || '', startPage = 'home', motion = 'system', shortcuts = defaultShortcuts } = saved;
@@ -383,9 +393,9 @@ function renderJournal(data) {
   show('clear-filters', Boolean(selectedTags.size || $('mood-filter').value || $('search').value));
   $('journal-records').innerHTML = data.entries.map((entry) => {
     const [mood, sign] = moods[entry.mood] || moods.neutral;
-    return `<article class="card record" data-id="${entry.id}">
+    return `<article class="card record" id="entry-${entry.id}" data-id="${entry.id}" tabindex="-1">
       <div class="record-top"><div class="record-meta"><time datetime="${escape(entry.created_at)}">${mediumDate.format(new Date(entry.created_at))}</time><span aria-hidden="true">·</span><code class="mood-sign" aria-hidden="true">${escape(sign)}</code>${mood}</div>
-        <div class="actions"><button class="text-button" data-action="edit">Edit</button><button class="text-button delete" data-action="delete">Delete</button></div>
+        <div class="actions">${workspaceTools ? '<button type="button" class="text-button" data-action="create-task">Create task</button>' : ''}<button class="text-button" data-action="edit">Edit</button><button class="text-button delete" data-action="delete">Delete</button></div>
       </div><p class="entry-body">${escape(entry.content)}</p><div class="chips">${entry.tags.map((tag) => tagChip(tag)).join('')}</div>
     </article>`;
   }).join('') || (data.total ? emptyState('search', 'No matching entries', 'Try another search or clear the filters.')
@@ -490,6 +500,7 @@ function setupJournal() {
     $('search').focus();
     void refresh('journal');
   });
+  $('journal-records').addEventListener('pointerdown', keepJournalSelection);
   $('journal-records').addEventListener('click', (event) => {
     const button = event.target.closest('button');
     if (!button) return;
@@ -501,12 +512,12 @@ function setupJournal() {
     const entry = reports.journal?.entries.find((record) => record.id === id);
     if (!entry) return;
     if (button.dataset.action === 'edit') editEntry(entry);
+    if (button.dataset.action === 'create-task') openSourceTask(entry);
     if (button.dataset.action === 'delete') {
       confirmDeletion('entry', entry.content, async () => {
-        await updateRecords('journal', `/api/entries/${id}`, 'DELETE', undefined, () => {
+        await deleteWorkspaceRecord('journal', `/api/entries/${id}`, 'Entry', () => {
           if (editingEntry === id) editEntry(null);
         });
-        notice('Entry deleted.');
       });
     }
   });
@@ -548,7 +559,7 @@ function renderTasks(data) {
     return `<article class="card record task-record" id="task-${task.id}" data-id="${task.id}">
       <div class="record-top"><label class="check-label"><input type="checkbox" data-task-toggle ${task.completed ? 'checked' : ''}><span>${escape(task.text)}</span></label>
         <div class="actions"><span class="priority-control" data-level="${escape(task.priority)}"><select class="priority-select" aria-label="Priority for ${escape(task.text)}" data-priority>${options}</select></span><button class="text-button" type="button" data-action="edit">Edit</button><button class="text-button delete" type="button" data-action="delete">Delete</button></div>
-      </div><div class="record-meta task-meta">${due}${repeat}</div>
+      </div><div class="record-meta task-meta">${due}${repeat}${task.source_entry_id ? `<a href="/journal#entry-${task.source_entry_id}">Source journal entry</a>` : ''}</div>
       <details class="task-details" ${openTasks.has(task.id) ? 'open' : ''}>
         <summary>Subtasks${count ? ` (${done}/${count})` : ''}</summary><ul class="subtasks">${subtasks}</ul>
         <form data-subtask-form novalidate>
@@ -666,19 +677,17 @@ function setupTasks() {
     if (button.dataset.action === 'edit') editTask(task);
     if (button.dataset.action === 'delete') {
       confirmDeletion('task', task.text, async () => {
-        await updateRecords('tasks', `/api/tasks/${id}`, 'DELETE', undefined, () => {
+        await deleteWorkspaceRecord('tasks', `/api/tasks/${id}`, 'Task', () => {
           if (editingTask === id) editTask(null);
           openTasks.delete(id);
           subtaskDrafts.delete(id);
         });
-        notice('Task deleted.');
       });
     }
     if (button.dataset.action === 'delete-subtask') {
       const subtask = task.subtasks.find((record) => record.id === Number(button.dataset.subtaskId));
       if (subtask) confirmDeletion('subtask', subtask.text, async () => {
-        await updateRecords('tasks', `/api/subtasks/${subtask.id}`, 'DELETE');
-        notice('Subtask deleted.');
+        await deleteWorkspaceRecord('tasks', `/api/subtasks/${subtask.id}`, 'Subtask');
       });
     }
   });
@@ -707,6 +716,10 @@ function setupTasks() {
 
 
 function focusComposer() {
+  if (currentView === 'calendar') {
+    openEvent();
+    return;
+  }
   if (currentView === 'home') {
     navigate('/journal?compose=1');
   } else {
@@ -745,9 +758,15 @@ async function showTask(hash) {
 function activate(url, focusHeading = false) {
   const view = routeViews[url.pathname];
   if (!view) return;
+  if (view === 'calendar' && !workspaceTools) {
+    history.replaceState({}, '', '/');
+    activate(new URL(location.href), focusHeading);
+    return;
+  }
   const changed = view !== currentView;
   currentView = view;
   const home = view === 'home';
+  const calendar = view === 'calendar';
   if (changed) {
     for (const name of Object.keys(routes)) {
       const nav = $(`nav-${name}`);
@@ -755,18 +774,19 @@ function activate(url, focusHeading = false) {
       else nav.removeAttribute('aria-current');
     }
     show('home-view', home);
-    show('work-view', !home);
+    show('calendar-view', calendar);
+    show('work-view', !home && !calendar);
     if (home) {
       updateGreeting();
       renderFocus();
       if (homeStale) void loadHome();
-    } else {
+    } else if (!calendar) {
       renderWorkView(view);
       updateClock();
     }
     window.scrollTo(0, 0);
     viewAnimation?.cancel();
-    const panel = $(home ? 'home-view' : 'work-view');
+    const panel = $(home ? 'home-view' : calendar ? 'calendar-view' : 'work-view');
     if (panel.animate && preferences.motion !== 'reduce' && !motionQuery.matches) {
       viewAnimation = panel.animate(
         [{ opacity: .74, transform: 'translateY(3px)' }, { opacity: 1, transform: 'translateY(0)' }],
@@ -782,10 +802,15 @@ function activate(url, focusHeading = false) {
     show('entry-prompt', Boolean(prompt));
     $('entry-content').setAttribute('aria-describedby', prompt ? 'entry-prompt entry-error' : 'entry-error');
   }
-  if (!home && url.searchParams.has('compose')) {
+  if (calendar) {
+    void loadCalendar(url.hash);
+    if (changed && focusHeading) $('calendar-title').focus({ preventScroll: true });
+  } else if (!home && url.searchParams.has('compose')) {
     focusComposer();
   } else if (view === 'tasks' && /^#task-\d+$/.test(url.hash)) {
     void showTask(url.hash);
+  } else if (view === 'journal' && /^#entry-\d+$/.test(url.hash)) {
+    void showSourceEntry(url.hash);
   } else if (home && url.hash === '#focus-title') {
     $('focus-title').scrollIntoView({ block: 'center' });
   } else if (changed && focusHeading) {
@@ -814,12 +839,9 @@ function setupNavigation() {
 }
 
 function setupShortcuts() {
-  const search = () => {
-    if (currentView !== 'journal') navigate('/journal', false);
-    $('search').focus();
-  };
+  const search = openGlobalSearch;
   const save = () => {
-    if (currentView === 'home') return;
+    if (currentView !== 'journal' && currentView !== 'tasks') return;
     const task = currentView === 'tasks';
     const button = $(task ? 'save-task' : 'save-entry');
     if (!button.disabled) button.form.requestSubmit(button);
@@ -830,6 +852,11 @@ function setupShortcuts() {
     const shortcut = shortcutCombo(event);
     if (!shortcut) return;
     const action = Object.keys(shortcutActions).find((key) => preferences.shortcuts[key] === shortcut);
+    if (!action && (shortcut === 'Control+KeyK' || shortcut === 'Meta+KeyK')) {
+      event.preventDefault();
+      openGlobalSearch();
+      return;
+    }
     if (!action) return;
     event.preventDefault();
     if (Object.hasOwn(routes, action)) navigate(routes[action]);
@@ -846,6 +873,7 @@ setupShortcuts();
 setupHome();
 setupJournal();
 setupTasks();
+setupWorkspaceTools();
 document.addEventListener('input', (event) => {
   if (event.target.dataset.error && event.target.hasAttribute('aria-invalid')) fieldMessage(event.target);
 });
@@ -859,6 +887,7 @@ setInterval(updateGreeting, 60000);
 async function startWorkspace() {
   try {
     if (!await loadAccount()) return;
+    await loadWorkspaceTools();
     void refresh('journal');
     void refresh('tasks');
     void loadHome();

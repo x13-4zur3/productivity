@@ -17,7 +17,7 @@ const shortcutActions = {
   tasks: 'Go to To-do list',
   settings: 'Open Settings',
   create: 'Start an entry or task',
-  search: 'Search journal entries',
+  search: 'Search everything',
   save: 'Save the current entry or task',
 };
 const preferences = {
@@ -226,9 +226,8 @@ function confirmDeletion(kind, excerpt, action) {
   if (dialog.open) return;
   deleteAction = action;
   text('delete-title', `Delete this ${kind}?`);
-  text('delete-description', kind === 'task'
-    ? 'This removes the task and its subtasks. You can’t undo this.'
-    : `This removes the ${kind} permanently.`);
+  const description = kind === 'task' ? 'This removes the task and its subtasks.' : `This removes the ${kind}.`;
+  text('delete-description', workspaceTools ? `${description} You’ll have 30 seconds to undo.` : `${description} This is permanent.`);
   const preview = excerpt.length > 180 ? excerpt.slice(0, 177).trimEnd() + '…' : excerpt;
   text('delete-preview', preview);
   show('delete-preview', Boolean(preview));
@@ -253,7 +252,9 @@ function setupDeletion() {
     try {
       await deleteAction();
       dialog.close();
-      if (!document.activeElement || document.activeElement === document.body) $('list-heading').focus();
+      if (!document.activeElement || document.activeElement === document.body) {
+        $(currentView === 'calendar' ? 'calendar-title' : 'list-heading').focus();
+      }
     } catch (error) {
       inlineMessage('delete-error', error.message);
       confirm.focus();

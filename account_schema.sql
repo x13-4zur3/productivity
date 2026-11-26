@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS entries (
     created_at text NOT NULL
 );
 CREATE INDEX IF NOT EXISTS entries_owner ON entries (owner_id, created_at DESC, id DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS entries_owner_id ON entries (owner_id, id);
 
 CREATE TABLE IF NOT EXISTS tasks (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -44,6 +45,16 @@ CREATE TABLE IF NOT EXISTS tasks (
     UNIQUE (owner_id, id),
     FOREIGN KEY (owner_id, next_task_id) REFERENCES tasks (owner_id, id) ON DELETE SET NULL (next_task_id)
 );
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS source_entry_id bigint;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_constraint WHERE conrelid = 'tasks'::regclass AND conname = 'tasks_source_entry') THEN
+        ALTER TABLE tasks ADD CONSTRAINT tasks_source_entry
+            FOREIGN KEY (owner_id, source_entry_id) REFERENCES entries (owner_id, id) ON DELETE SET NULL (source_entry_id);
+    END IF;
+END
+$$;
 
 CREATE TABLE IF NOT EXISTS subtasks (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -62,11 +73,31 @@ CREATE TABLE IF NOT EXISTS preferences (
     PRIMARY KEY (owner_id, name)
 );
 
+CREATE TABLE IF NOT EXISTS calendar_events (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    owner_id bigint NOT NULL DEFAULT active_user_id() REFERENCES accounts (id) ON DELETE CASCADE,
+    title text NOT NULL,
+    start_day text NOT NULL,
+    end_day text NOT NULL,
+    start_time text,
+    end_time text,
+    notes text NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS pending_deletions (
+    owner_id bigint NOT NULL DEFAULT active_user_id() REFERENCES accounts (id) ON DELETE CASCADE,
+    kind text NOT NULL CHECK (kind IN ('entries', 'tasks', 'subtasks', 'calendar_events')),
+    record_id bigint NOT NULL,
+    token text NOT NULL UNIQUE,
+    expires text NOT NULL,
+    PRIMARY KEY (owner_id, kind, record_id)
+);
+
 DO $$
 DECLARE
     relation text;
 BEGIN
-    FOREACH relation IN ARRAY ARRAY['entries', 'tasks', 'subtasks', 'preferences'] LOOP
+    FOREACH relation IN ARRAY ARRAY['entries', 'tasks', 'subtasks', 'preferences', 'calendar_events', 'pending_deletions'] LOOP
         EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', relation);
         EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', relation);
         IF NOT EXISTS (

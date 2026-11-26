@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/style.css">
   <script src="/settings.js" defer></script>
   <script src="/accounts.js" defer></script>
+  <script src="/workspace.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -20,8 +21,12 @@
         <a href="/" id="nav-home"><i class="icon icon-home" aria-hidden="true"></i>Home</a>
         <a href="/journal" id="nav-journal"><i class="icon icon-book" aria-hidden="true"></i>Journal</a>
         <a href="/todos" id="nav-tasks"><i class="icon icon-check" aria-hidden="true"></i>To-do list</a>
+        <a href="/calendar" id="nav-calendar" hidden>Calendar</a>
       </nav>
       <div class="rail-controls">
+        <button type="button" class="settings-button" id="open-global-search" aria-label="Search everything" aria-haspopup="dialog" hidden>
+          <i class="icon icon-search" aria-hidden="true"></i><span>Search</span>
+        </button>
         <button type="button" class="settings-button" id="open-settings" aria-label="Settings" aria-haspopup="dialog">
           <i class="icon icon-settings" aria-hidden="true">⚙</i><span>Settings</span>
         </button>
@@ -32,6 +37,7 @@
             <button type="button" data-theme-option="dark" aria-pressed="false"><i class="theme-swatch swatch-dark" aria-hidden="true"></i>Docs Dark</button>
             <button type="button" data-theme-option="terminal" aria-pressed="false"><i class="theme-swatch swatch-terminal" aria-hidden="true"></i>Terminal</button>
             <button type="button" data-theme-option="contrast" aria-pressed="false"><i class="theme-swatch swatch-contrast" aria-hidden="true"></i>High Contrast</button>
+            <button type="button" data-theme-option="pink" aria-pressed="false" hidden><i class="theme-swatch swatch-pink" aria-hidden="true"></i>Pink</button>
           </div>
         </details>
       </div>
@@ -89,6 +95,10 @@
               <button type="button" class="secondary" id="reset-focus">Reset</button>
               <button type="button" class="primary" id="toggle-focus">Start</button>
             </div>
+            <form id="custom-focus" class="custom-focus" hidden>
+              <label for="custom-minutes">Custom minutes</label>
+              <div class="inline-input"><input id="custom-minutes" type="number" min="1" max="180" step="1" required inputmode="numeric" placeholder="1–180"><button type="submit" class="secondary" id="set-custom-focus">Set timer</button></div>
+            </form>
           </div>
         </section>
 
@@ -119,6 +129,31 @@
         </section>
       </div>
     </div>
+    <section id="calendar-view" class="calendar-view" aria-labelledby="calendar-title" hidden>
+      <header class="page-heading">
+        <h1 id="calendar-title" tabindex="-1">Calendar</h1>
+        <button type="button" class="primary" id="new-event">Add event</button>
+      </header>
+      <div class="calendar-layout">
+        <section class="card calendar-board" aria-labelledby="calendar-month">
+          <div class="calendar-toolbar">
+            <h2 id="calendar-month" aria-live="polite"></h2>
+            <div class="workspace-actions" aria-label="Choose a month">
+              <button type="button" class="secondary" id="previous-month" aria-label="Previous month">‹</button>
+              <button type="button" class="secondary" id="calendar-today">Today</button>
+              <button type="button" class="secondary" id="next-month" aria-label="Next month">›</button>
+            </div>
+          </div>
+          <div class="calendar-weekdays" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+          <div class="calendar-grid" id="calendar-days" aria-label="Calendar days"></div>
+          <p id="calendar-error" class="field-error" role="alert" hidden></p>
+        </section>
+        <section class="card calendar-agenda" aria-labelledby="calendar-day-title">
+          <h2 id="calendar-day-title" aria-live="polite"></h2>
+          <div id="calendar-agenda"></div>
+        </section>
+      </div>
+    </section>
     <div id="work-view" hidden>
       <header class="page-heading">
         <div>
@@ -184,6 +219,7 @@
               <h2 id="list-heading" tabindex="-1">Entries</h2>
               <label class="search" id="search-control" hidden><i class="icon icon-search" aria-hidden="true"></i><span class="sr-only">Search entries</span><input type="search" id="search" placeholder="Search entries…"></label>
               <div id="task-controls" hidden>
+                <button type="button" id="open-planner" class="secondary" aria-haspopup="dialog" hidden>Weekly planner</button>
                 <label class="sr-only" for="task-sort">Sort tasks</label>
                 <select id="task-sort"><option value="date">Date created</option><option value="priority">Priority</option><option value="dueDate">Due date</option></select>
               </div>
@@ -256,7 +292,7 @@
         </section>
         <section id="appearance-settings" role="tabpanel" aria-labelledby="appearance-tab" hidden>
           <div class="setting-row"><div><label for="settings-theme">Theme</label><p>Applies to every view and dialog.</p></div>
-            <select id="settings-theme"><option value="light">Docs</option><option value="dark">Docs Dark</option><option value="terminal">Terminal</option><option value="contrast">High Contrast</option></select></div>
+            <select id="settings-theme"><option value="light">Docs</option><option value="dark">Docs Dark</option><option value="terminal">Terminal</option><option value="contrast">High Contrast</option><option value="pink" hidden disabled>Pink</option></select></div>
           <div class="setting-row"><div><label for="motion-setting">Motion</label><p>Control animations and page transitions.</p></div>
             <select id="motion-setting"><option value="system">Follow system</option><option value="reduce">Reduce motion</option></select></div>
         </section>
@@ -284,6 +320,60 @@
         <button type="submit" class="primary" id="save-settings">Save changes</button>
       </footer>
     </form>
+  </dialog>
+  <dialog class="app-dialog workspace-dialog" id="global-search-dialog" aria-labelledby="global-search-title">
+    <header class="dialog-header"><h2 id="global-search-title">Search everything</h2><button type="button" class="dialog-close" id="close-global-search" aria-label="Close search">×</button></header>
+    <div class="workspace-dialog-body">
+      <label class="sr-only" for="global-query">Search entries, tasks, and events</label>
+      <input id="global-query" type="search" placeholder="Search entries, tasks, and events…" autocomplete="off">
+      <p id="global-search-status" class="workspace-hint" role="status"></p>
+      <div id="global-results" class="global-results"></div>
+    </div>
+  </dialog>
+  <dialog class="app-dialog workspace-dialog" id="event-dialog" aria-labelledby="event-title">
+    <form id="event-form">
+      <header class="dialog-header"><h2 id="event-title">New event</h2></header>
+      <div class="workspace-dialog-body">
+        <label class="field-label" for="event-name">Event title</label><input id="event-name" name="title" maxlength="180" required>
+        <div class="event-fields">
+          <div><label for="event-start-day">Start date</label><input id="event-start-day" name="start_day" type="date" max="9999-12-31" required></div>
+          <div><label for="event-end-day">End date <small>optional</small></label><input id="event-end-day" name="end_day" type="date" max="9999-12-31"></div>
+          <div><label for="event-start-time">Start time</label><input id="event-start-time" name="start_time" type="time"></div>
+          <div><label for="event-end-time">End time</label><input id="event-end-time" name="end_time" type="time"></div>
+        </div>
+        <p class="workspace-hint">Leave both times blank for an all-day event.</p>
+        <label class="field-label" for="event-notes">Notes <small>optional</small></label><textarea id="event-notes" name="notes" maxlength="3000" rows="3"></textarea>
+        <p id="event-error" class="field-error" role="alert" hidden></p>
+      </div>
+      <footer class="dialog-footer"><button type="button" class="text-button delete" id="delete-event" hidden>Delete event</button><button type="button" class="secondary" id="close-event">Cancel</button><button type="submit" class="primary" id="save-event">Save event</button></footer>
+    </form>
+  </dialog>
+  <dialog class="app-dialog workspace-dialog" id="source-task-dialog" aria-labelledby="source-task-title">
+    <form id="source-task-form">
+      <header class="dialog-header"><h2 id="source-task-title">Create task from journal</h2></header>
+      <div class="workspace-dialog-body">
+        <label class="field-label" for="source-task-text">Task name</label>
+        <input id="source-task-text" required maxlength="300">
+        <label class="field-label" for="source-task-due">Due date <small>optional</small></label>
+        <input id="source-task-due" type="date" max="9999-12-31">
+        <p id="source-task-error" class="field-error" role="alert" hidden></p>
+      </div>
+      <footer class="dialog-footer"><button type="button" class="secondary" id="close-source-task">Cancel</button><button type="submit" class="primary" id="save-source-task">Create task</button></footer>
+    </form>
+  </dialog>
+  <dialog class="app-dialog workspace-dialog planner-dialog" id="planner-dialog" aria-labelledby="planner-title">
+    <header class="dialog-header"><h2 id="planner-title">Weekly planner</h2></header>
+    <div class="workspace-dialog-body">
+      <div class="workspace-actions" aria-label="Choose a week">
+        <button type="button" class="secondary" id="previous-week">Previous week</button>
+        <button type="button" class="secondary" id="current-week">This week</button>
+        <button type="button" class="secondary" id="next-week">Next week</button>
+      </div>
+      <p id="planner-range" role="status" aria-live="polite"></p>
+      <p id="planner-error" class="field-error" role="alert" hidden></p>
+      <div class="planner-grid" id="planner-days"></div>
+    </div>
+    <footer class="dialog-footer"><button type="button" class="secondary" id="close-planner">Close</button></footer>
   </dialog>
   <dialog class="app-dialog account-dialog" id="account-dialog" aria-labelledby="account-title">
     <form id="account-form" novalidate>
@@ -323,10 +413,12 @@
       <button type="button" class="danger-button" id="confirm-delete">Delete</button>
     </footer>
   </dialog>
-  <div id="notice" class="notice" hidden>
+  <div id="undo-notices" class="undo-notices" aria-label="Notifications">
+    <div id="notice" class="notice" hidden>
     <span id="notice-mark" class="notice-mark" aria-hidden="true"></span>
     <span id="notice-message" role="status"></span>
     <button type="button" id="dismiss-notice" class="dialog-close" aria-label="Dismiss notification">×</button>
+    </div>
   </div>
   <noscript><p class="no-script">Enable JavaScript to use the journal and to-do list.</p></noscript>
 </body>
