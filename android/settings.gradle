@@ -1,4 +1,13 @@
 pluginManagement {
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == 'com.chaquo.python' && requested.version != null) {
+                // Resolve Chaquopy without relying on its separate plugin marker.
+                useModule("com.chaquo.python:gradle:${requested.version}")
+            }
+        }
+    }
+      
     repositories {
         google()
         mavenCentral()
