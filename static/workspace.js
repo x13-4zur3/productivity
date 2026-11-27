@@ -1,19 +1,24 @@
 'use strict';
 
 let workspaceTools = false;
+let expandedShortcuts = false;
 let sourceEntry = null;
 let plannerWeek;
 let plannerTasks = [];
 let calendarDay = civilDay(new Date());
-let calendarMonth = calendarDay.slice(0, 7) + '-01';
+let calendarMode = 'month';
 let calendarItems = { events: [], tasks: [], entries: [] };
 let calendarLoad = 0;
 let editingEvent = null;
 let searchItems = null;
 let searchLoad = 0;
+let searchReturnFocus;
 
 const monthName = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' });
 const dayName = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+const weekDate = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+const linearWeekday = new Intl.DateTimeFormat(undefined, { weekday: 'long' });
+const calendarSteps = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
 
 function civilDay(value) {
   const date = typeof value === 'string' ? new Date(value) : value;
@@ -39,12 +44,20 @@ function monday(day) {
 }
 
 async function loadWorkspaceTools() {
-  try { workspaceTools = Boolean((await request('/api/features')).workspaceTools); }
-  catch { workspaceTools = false; }
-  for (const id of ['nav-calendar', 'open-planner', 'custom-focus']) show(id, workspaceTools);
+  try {
+    const features = await request('/api/features');
+    workspaceTools = Boolean(features.workspaceTools);
+    expandedShortcuts = Boolean(features.expandedShortcuts);
+  } catch {
+    workspaceTools = expandedShortcuts = false;
+  }
+  for (const id of ['nav-calendar', 'open-planner', 'focus-custom-option']) show(id, workspaceTools);
   const pink = $('settings-theme').querySelector('[value="pink"]');
   pink.disabled = pink.hidden = !workspaceTools;
   document.querySelector('[data-theme-option="pink"]').hidden = !workspaceTools;
+  const eventFilter = $('global-kind').querySelector('[value="event"]');
+  eventFilter.disabled = eventFilter.hidden = !workspaceTools;
+  if (!workspaceTools && eventFilter.selected) $('global-kind').value = '';
   show('open-global-search', true);
 }
 
@@ -60,16 +73,37 @@ function keepJournalSelection(event) {
   if (button && selectedJournalText(button.closest('article').dataset.id)) event.preventDefault();
 }
 
-function openSourceTask(entry) {
-  sourceEntry = entry.id;
+function openTaskDialog({ entry, day = '' }) {
+  sourceEntry = entry?.id ?? null;
   $('source-task-form').reset();
-  fieldMessage($('source-task-text'));
-  fieldMessage($('source-task-due'));
+  const name = $('source-task-text');
+  const due = $('source-task-due');
+  fieldMessage(name);
+  fieldMessage(due);
+  due.required = Boolean(day);
+  due.value = day;
+  show('source-task-optional', !due.required);
+  text('source-task-title', entry ? 'Create task from journal' : 'Add task for this day');
+  if (entry) {
+    const selected = selectedJournalText(entry.id) || entry.content.split('\n').find((line) => line.trim()) || '';
+    name.value = selected.trim().replace(/\s+/g, ' ').slice(0, 300);
+  }
   inlineMessage('source-task-error');
-  const selected = selectedJournalText(entry.id) || entry.content.split('\n').find((line) => line.trim()) || '';
-  $('source-task-text').value = selected.trim().replace(/\s+/g, ' ').slice(0, 300);
   $('source-task-dialog').showModal();
-  $('source-task-text').focus();
+  name.focus();
+}
+
+function openSourceTask(entry) {
+  openTaskDialog({ entry });
+}
+
+function openJournalTaskFromSelection() {
+  const anchor = window.getSelection()?.anchorNode;
+  const card = anchor?.parentElement?.closest('#journal-records article')
+    || document.activeElement?.closest('#journal-records article');
+  const entry = currentView === 'journal' && card && reports.journal?.entries.find((item) => item.id === Number(card.dataset.id));
+  if (entry) openSourceTask(entry);
+  else notice('Select text in a saved journal entry to create a task.');
 }
 
 async function showSourceEntry(hash) {
@@ -119,6 +153,13 @@ async function reloadPlanner() {
   } catch (error) { inlineMessage('planner-error', error.message); }
 }
 
+function openWeeklyPlanner() {
+  plannerWeek = monday(civilDay(new Date()));
+  $('planner-dialog').showModal();
+  renderPlanner();
+  void reloadPlanner();
+}
+
 async function movePlannerTask(form, day) {
   if (form.dataset.pending) return;
   form.dataset.pending = 'true';
@@ -143,42 +184,126 @@ function calendarRecords(day) {
   };
 }
 
+function isCalendarDate(day) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) && !day.startsWith('0000-');
+}
+
 function calendarBadge(kind, label, count) {
-  return count ? `<span class="calendar-tag" data-kind="${kind}"><span>${label}</span><b>${count}</b></span>` : '';
+  return count ? `<span class="calendar-tag" data-kind="${kind}"><span>${escape(label)}</span><b>${count}</b></span>` : '';
 }
 
 function agendaGroup(label, items) {
   return items.length ? `<section class="agenda-group"><h3>${label}</h3>${items.join('')}</section>` : '';
 }
 
-function renderCalendar() {
-  const today = civilDay(new Date());
-  const month = calendarMonth.slice(0, 7);
-  text('calendar-month', monthName.format(noon(calendarMonth)));
-  text('calendar-day-title', fullDate.format(noon(calendarDay)));
-  const start = monday(calendarMonth);
-  const cells = Array.from({ length: 42 }, (_, index) => {
+function agendaItems({ events, tasks, entries }, day) {
+  return {
+    events: events.map((item) => `<button type="button" class="agenda-item" data-event-id="${item.id}">
+      <span class="calendar-tag" data-kind="event">${eventTime(item, day)}</span><strong>${escape(item.title)}</strong></button>`),
+    tasks: tasks.map((item) => `<a class="agenda-item" href="/todos#task-${item.id}"><span class="calendar-tag" data-kind="task">${item.completed ? 'Done' : 'Due'}</span>
+      <strong>${escape(item.text)}</strong></a>`),
+    entries: entries.map((item) => `<a class="agenda-item" href="/journal#entry-${item.id}"><span class="calendar-tag" data-kind="journal">${escape(moods[item.mood]?.[0] || 'Entry')}</span>
+      <strong>${escape(excerpt(item.content))}</strong></a>`),
+  };
+}
+
+function calendarDateAttributes(day, today, { events, tasks, entries }) {
+  const date = fullDate.format(noon(day));
+  const counts = [[events.length, 'event'], [tasks.length, 'task'], [entries.length, 'journal entry', 'journal entries']];
+  const label = [date, ...counts.map(([count, name, plural = name + 's']) => `${count} ${count === 1 ? name : plural}`)].join(', ');
+  return `data-calendar-day="${day}" aria-label="${escape(label)}" aria-pressed="${day === calendarDay}"
+    tabindex="${day === calendarDay ? 0 : -1}" ${day === today ? 'aria-current="date"' : ''}`;
+}
+
+function renderMonth(start, first, today) {
+  const last = noon(first);
+  last.setMonth(last.getMonth() + 1, 0);
+  const count = Math.ceil((last.getDate() + (noon(first).getDay() + 6) % 7) / 7) * 7;
+  return Array.from({ length: count }, (_, index) => {
     const day = shiftDay(start, index);
-    if (day.length !== 10 || day.startsWith('0000-')) return '<span aria-hidden="true"></span>';
-    const { events, tasks, entries } = calendarRecords(day);
-    const value = noon(day);
-    const date = fullDate.format(value);
-    const label = `${date}, ${events.length} events, ${tasks.length} tasks, ${entries.length} journal entries`;
-    return `<button type="button" class="calendar-cell" data-calendar-day="${day}" data-outside="${!day.startsWith(month)}" data-weekend="${[0, 6].includes(value.getDay())}"
-      aria-label="${escape(label)}" aria-pressed="${day === calendarDay}" ${day === today ? 'aria-current="date"' : ''}>
-      <span class="calendar-number">${value.getDate()}</span><span class="calendar-tags">
-      ${calendarBadge('event', 'Events', events.length)}${calendarBadge('task', 'Tasks', tasks.length)}${calendarBadge('journal', 'Journal', entries.length)}</span></button>`;
-  });
-  $('calendar-days').innerHTML = cells.join('');
-  const { events, tasks, entries } = calendarRecords(calendarDay);
+    if (!isCalendarDate(day)) return '<span aria-hidden="true"></span>';
+    const records = calendarRecords(day);
+    const { events, tasks, entries } = records;
+    const date = noon(day);
+    const outside = !day.startsWith(first.slice(0, 7));
+    const weekend = date.getDay() === 0 || date.getDay() === 6;
+    return `<button type="button" class="calendar-cell" ${calendarDateAttributes(day, today, records)} data-outside="${outside}" data-weekend="${weekend}">
+      <span class="calendar-number">${date.getDate()}</span><span class="calendar-tags" aria-hidden="true">
+        ${calendarBadge('event', events[0]?.title ?? '', events.length)}
+        ${calendarBadge('task', tasks[0]?.text ?? '', tasks.length)}
+        ${calendarBadge('journal', 'Journal', entries.length)}
+      </span>
+    </button>`;
+  }).join('');
+}
+
+function renderLinear(start, today) {
+  return Array.from({ length: 7 }, (_, index) => shiftDay(start, index)).filter(isCalendarDate).map((day) => {
+    const date = noon(day);
+    const records = calendarRecords(day);
+    const { events, tasks, entries } = agendaItems(records, day);
+    const items = [...events, ...tasks, ...entries];
+    return `<section class="linear-day" data-selected="${day === calendarDay}">
+      <button type="button" class="linear-date" ${calendarDateAttributes(day, today, records)}>
+        <span class="calendar-number">${date.getDate()}</span>
+        <span>${escape(linearWeekday.format(date))}${day === today ? '<small>Today</small>' : ''}</span>
+      </button>
+      <div class="linear-items">${items.join('') || '<p class="workspace-hint">Nothing scheduled</p>'}</div>
+    </section>`;
+  }).join('');
+}
+
+function renderCalendar() {
+  const days = $('calendar-days');
+  const focusDay = days.contains(document.activeElement) && document.activeElement.hasAttribute('data-calendar-day');
+  const today = civilDay(new Date());
+  const first = calendarDay.slice(0, 7) + '-01';
+  const linear = calendarMode === 'linear';
+  const start = monday(linear ? calendarDay : first);
+  const end = shiftDay(start, 6);
+  text('calendar-month', linear
+    ? weekDate.formatRange(noon(isCalendarDate(start) ? start : '0001-01-01'), noon(isCalendarDate(end) ? end : '9999-12-31'))
+    : monthName.format(noon(first)));
+  text('calendar-day-title', fullDate.format(noon(calendarDay)));
+  days.dataset.mode = calendarMode;
+  text('calendar-keyboard', linear ? 'Use up and down for days, or left and right for weeks.' :
+    'Use left and right for days, or up and down for weeks.');
+  show('calendar-weekdays', !linear);
+  $('calendar-view-month').setAttribute('aria-pressed', String(!linear));
+  $('calendar-view-linear').setAttribute('aria-pressed', String(linear));
+  const unit = linear ? 'week' : 'month';
+  $('calendar-period-controls').setAttribute('aria-label', 'Choose a ' + unit);
+  $('previous-month').setAttribute('aria-label', 'Previous ' + unit);
+  $('next-month').setAttribute('aria-label', 'Next ' + unit);
+  days.innerHTML = linear ? renderLinear(start, today) : renderMonth(start, first, today);
+  if (focusDay) calendarDayButton()?.focus({ preventScroll: true });
+
+  const { events, tasks, entries } = agendaItems(calendarRecords(calendarDay), calendarDay);
   $('calendar-agenda').innerHTML = [
-    agendaGroup('Events', events.map((item) => `<button type="button" class="agenda-item" data-event-id="${item.id}">
-      <span class="calendar-tag" data-kind="event">${eventTime(item, calendarDay)}</span><strong>${escape(item.title)}</strong></button>`)),
-    agendaGroup('Tasks due', tasks.map((item) => `<a class="agenda-item" href="/todos#task-${item.id}"><span class="calendar-tag" data-kind="task">${item.completed ? 'Done' : 'Due'}</span>
-      <strong>${escape(item.text)}</strong></a>`)),
-    agendaGroup('Journal entries', entries.map((item) => `<a class="agenda-item" href="/journal#entry-${item.id}"><span class="calendar-tag" data-kind="journal">${escape(moods[item.mood]?.[0] || 'Entry')}</span>
-      <strong>${escape(excerpt(item.content))}</strong></a>`)),
-  ].join('') || '<p class="workspace-hint">No schedules, tasks, or entries for this date.</p>';
+    agendaGroup('Events', events), agendaGroup('Tasks due', tasks), agendaGroup('Journal entries', entries),
+  ].join('') || '<p class="agenda-empty">Nothing scheduled for this date.</p>';
+}
+
+function calendarDayButton() {
+  return $('calendar-days').querySelector('[data-calendar-day][aria-pressed="true"]');
+}
+
+function animateCalendar() {
+  if (preferences.motion === 'reduce' || motionQuery.matches) return;
+  const days = $('calendar-days');
+  for (const animation of days.getAnimations()) animation.cancel();
+  days.animate([{ opacity: .6, transform: 'translateY(3px)' }, { opacity: 1, transform: 'translateY(0)' }],
+    { duration: 160, easing: 'ease-out' });
+}
+
+function moveCalendar(offset) {
+  const date = noon(calendarDay);
+  if (calendarMode === 'linear') date.setDate(date.getDate() + 7 * offset);
+  else date.setMonth(date.getMonth() + offset, 1);
+  const day = civilDay(date);
+  if (!isCalendarDate(day)) return;
+  selectCalendarDay(day);
+  animateCalendar();
 }
 
 function eventTime(event, day) {
@@ -191,7 +316,6 @@ function eventTime(event, day) {
 
 function selectCalendarDay(day) {
   calendarDay = day;
-  calendarMonth = day.slice(0, 7) + '-01';
   renderCalendar();
 }
 
@@ -225,6 +349,11 @@ function openEvent(event) {
   inlineMessage('event-error');
   $('event-dialog').showModal();
   $('event-name').focus();
+}
+
+function createCalendarEvent() {
+  if (currentView !== 'calendar') navigate('/calendar');
+  openEvent();
 }
 
 function excerpt(value, limit = 110) {
@@ -269,31 +398,44 @@ async function loadWorkspaceRecords(includeEvents) {
 function renderSearchResults() {
   if (searchItems === null) return;
   const query = $('global-query').value.trim().toLocaleLowerCase();
-  const matches = query ? searchItems.filter((item) => item.value.includes(query)) : [];
+  const terms = query.split(/\s+/);
+  const kind = $('global-kind').value;
+  const matches = query ? searchItems.filter((item) =>
+    (!kind || item.kind === kind) && terms.every((term) => item.value.includes(term))) : [];
   text('global-search-status', !query ? 'Type to search your workspace.' : !matches.length ? 'No matching results.' :
     matches.length <= 24 ? `${matches.length} ${matches.length === 1 ? 'result' : 'results'}` : `Showing 24 of ${matches.length} results`);
   $('global-results').innerHTML = matches.slice(0, 24).map((item) => `<a class="agenda-item" href="${item.href}">
     <span class="calendar-tag" data-kind="${item.kind}">${item.label}</span><strong>${escape(item.title)}</strong></a>`).join('');
 }
 
-function openGlobalSearch() {
+function toggleGlobalSearch() {
   if (!currentView) return;
-  const panel = $('global-search-panel');
-  if (panel.hidden) {
-    show('global-search-panel', true);
-    document.body.classList.add('search-open');
-    $('open-global-search').setAttribute('aria-expanded', 'true');
-    void refreshGlobalSearch();
+  if (!$('global-search-panel').hidden) {
+    closeGlobalSearch();
+    return;
   }
+  searchReturnFocus = document.activeElement;
+  show('global-search-panel', true);
+  document.body.classList.add('search-open');
+  $('open-global-search').setAttribute('aria-expanded', 'true');
   $('global-query').focus({ preventScroll: true });
+  void refreshGlobalSearch();
 }
 
 function closeGlobalSearch() {
+  const panel = $('global-search-panel');
+  const restoreFocus = panel.contains(document.activeElement);
   ++searchLoad;
   show('global-search-panel', false);
   document.body.classList.remove('search-open');
   $('open-global-search').setAttribute('aria-expanded', 'false');
-  $('open-global-search').focus({ preventScroll: true });
+  if (restoreFocus) {
+    const previous = searchReturnFocus;
+    const focus = previous && previous !== document.body && previous.getClientRects().length
+      ? previous : $('open-global-search');
+    focus.focus({ preventScroll: true });
+  }
+  searchReturnFocus = null;
 }
 
 async function refreshGlobalSearch() {
@@ -339,7 +481,7 @@ function showUndoToast({ token, seconds }, view, label) {
   const toast = document.createElement('div');
   toast.className = 'undo-toast';
   toast.innerHTML = `<span role="status">${label} deleted.</span><span class="undo-seconds" aria-hidden="true">${seconds}s</span>
-    <button type="button" class="text-button">Undo</button><button type="button" class="dialog-close" aria-label="Dismiss deletion notice">×</button>`;
+    <button type="button" class="text-button" data-undo>Undo</button><button type="button" class="dialog-close" aria-label="Dismiss deletion notice">×</button>`;
   const [undo, close] = toast.querySelectorAll('button');
   const counter = toast.querySelector('.undo-seconds');
   const deadline = performance.now() + seconds * 1000;
@@ -376,6 +518,11 @@ function showUndoToast({ token, seconds }, view, label) {
   $('undo-notices').append(toast);
 }
 
+function undoLatestDeletion() {
+  const available = $('undo-notices').querySelectorAll('[data-undo]');
+  available[available.length - 1]?.click();
+}
+
 function setupWorkspaceTools() {
   $('source-task-form').addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -385,25 +532,30 @@ function setupWorkspaceTools() {
     if (!name) return;
     const due = $('source-task-due');
     if (!due.validity.valid) {
-      fieldMessage(due, 'Choose a valid due date.');
+      fieldMessage(due, due.validity.valueMissing ? 'Choose a due date for this task.' : 'Choose a valid due date.');
       return;
     }
     fieldMessage(due);
     button.disabled = true;
-    await mutate('tasks', '/api/tasks', 'POST', { text: name,
-      due_date: due.value, source_entry_id: sourceEntry }, () => {
+    const day = due.value;
+    const linked = sourceEntry !== null;
+    await mutate('tasks', '/api/tasks', 'POST', { text: name, due_date: day, source_entry_id: sourceEntry }, () => {
       $('source-task-dialog').close();
-      notice('Task created and linked to the journal entry.');
+      if (!linked && currentView === 'calendar') {
+        selectCalendarDay(day);
+        void loadCalendar();
+      }
+      notice(linked ? 'Task created and linked to the journal entry.' : 'Task added to the calendar.');
     }, (message) => inlineMessage('source-task-error', message));
     button.disabled = false;
   });
-  $('close-source-task').addEventListener('click', () => $('source-task-dialog').close());
-  $('open-planner').addEventListener('click', () => {
-    plannerWeek = monday(civilDay(new Date()));
-    $('planner-dialog').showModal();
-    renderPlanner();
-    void reloadPlanner();
+  $('close-source-task').addEventListener('click', () => {
+    if (!$('save-source-task').disabled) $('source-task-dialog').close();
   });
+  $('source-task-dialog').addEventListener('cancel', (event) => {
+    if ($('save-source-task').disabled) event.preventDefault();
+  });
+  $('open-planner').addEventListener('click', openWeeklyPlanner);
   $('close-planner').addEventListener('click', () => $('planner-dialog').close());
   $('current-week').addEventListener('click', () => {
     plannerWeek = monday(civilDay(new Date()));
@@ -427,28 +579,43 @@ function setupWorkspaceTools() {
     if (event.target.closest('[data-carry]')) void movePlannerTask(event.target.closest('form'), civilDay(new Date()));
   });
 
-  for (const [id, offset] of [['previous-month', -1], ['next-month', 1]]) {
-    $(id).addEventListener('click', () => {
-      const month = noon(calendarMonth);
-      month.setMonth(month.getMonth() + offset);
-      if (month.getFullYear() < 1 || month.getFullYear() > 9999) return;
-      selectCalendarDay(civilDay(month));
+  for (const mode of ['month', 'linear']) {
+    $('calendar-view-' + mode).addEventListener('click', () => {
+      if (mode === calendarMode) return;
+      calendarMode = mode;
+      renderCalendar();
+      animateCalendar();
     });
   }
+  $('previous-month').addEventListener('click', () => moveCalendar(-1));
+  $('next-month').addEventListener('click', () => moveCalendar(1));
   $('calendar-today').addEventListener('click', () => selectCalendarDay(civilDay(new Date())));
   $('calendar-days').addEventListener('click', (event) => {
     const day = event.target.closest('[data-calendar-day]');
     if (day) {
       selectCalendarDay(day.dataset.calendarDay);
-      $('calendar-days').querySelector(`[data-calendar-day="${day.dataset.calendarDay}"]`)?.focus();
+      calendarDayButton()?.focus();
     }
   });
+  $('calendar-days').addEventListener('keydown', (event) => {
+    const step = calendarSteps[event.key];
+    if (!event.target.matches('[data-calendar-day]') || !step || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+    const linearStep = { ArrowUp: -1, ArrowDown: 1, ArrowLeft: -7, ArrowRight: 7 };
+    const next = shiftDay(calendarDay, calendarMode === 'linear' ? linearStep[event.key] : step);
+    event.preventDefault();
+    if (!isCalendarDate(next)) return;
+    selectCalendarDay(next);
+    calendarDayButton()?.focus();
+  });
+  $('calendar-add-task').addEventListener('click', () => openTaskDialog({ day: calendarDay }));
   $('new-event').addEventListener('click', () => openEvent());
   $('close-event').addEventListener('click', () => $('event-dialog').close());
-  $('calendar-agenda').addEventListener('click', (event) => {
-    const button = event.target.closest('[data-event-id]');
-    if (button) openEvent(calendarItems.events.find((item) => item.id === Number(button.dataset.eventId)));
-  });
+  for (const id of ['calendar-days', 'calendar-agenda']) {
+    $(id).addEventListener('click', (event) => {
+      const button = event.target.closest('[data-event-id]');
+      if (button) openEvent(calendarItems.events.find((item) => item.id === Number(button.dataset.eventId)));
+    });
+  }
   $('event-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     const save = $('save-event');
@@ -473,9 +640,10 @@ function setupWorkspaceTools() {
     $('event-dialog').close();
     confirmDeletion('event', event.title, () => deleteWorkspaceRecord('calendar', `/api/calendar/${event.id}`, 'Event'));
   });
-  $('open-global-search').addEventListener('click', openGlobalSearch);
+  $('open-global-search').addEventListener('click', toggleGlobalSearch);
   $('close-global-search').addEventListener('click', closeGlobalSearch);
   $('global-query').addEventListener('input', renderSearchResults);
+  $('global-kind').addEventListener('change', renderSearchResults);
   $('global-query').addEventListener('keydown', (event) => {
     if (event.key === 'Enter') $('global-results').querySelector('a')?.click();
   });

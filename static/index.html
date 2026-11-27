@@ -14,21 +14,32 @@
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
+  <header class="window-titlebar" id="window-titlebar" aria-label="Productivity window" hidden>
+    <div class="window-title pywebview-drag-region" id="window-drag">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
+      <span>Productivity</span>
+    </div>
+    <div class="window-actions" role="group" aria-label="Window controls">
+      <button type="button" id="window-minimize" aria-label="Minimize window" title="Minimize"><span aria-hidden="true"></span></button>
+      <button type="button" id="window-maximize" aria-label="Maximize window" title="Maximize"><span aria-hidden="true"></span></button>
+      <button type="button" id="window-close" aria-label="Close window" title="Close"><span aria-hidden="true"></span></button>
+    </div>
+  </header>
   <header class="topbar">
     <div class="topbar-inner">
       <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"><i></i><i></i></span>Productivity</a>
       <nav aria-label="Main navigation">
-        <a href="/" id="nav-home"><i class="icon icon-home" aria-hidden="true"></i>Home</a>
-        <a href="/journal" id="nav-journal"><i class="icon icon-book" aria-hidden="true"></i>Journal</a>
-        <a href="/todos" id="nav-tasks"><i class="icon icon-check" aria-hidden="true"></i>To-do list</a>
-        <a href="/calendar" id="nav-calendar" hidden>Calendar</a>
+        <a href="/" id="nav-home"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 21v-7h6v7"/></svg>Home</a>
+        <a href="/journal" id="nav-journal"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="15" height="18" rx="2"/><path d="M9 3v18M3 8h4m-4 4h4m-4 4h4m5-7h4m-4 4h4"/></svg>Journal</a>
+        <a href="/todos" id="nav-tasks"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 2 2 3-4m-5 8 2 2 3-4m-5 8 2 2 3-4m3-9h10m-10 6h10m-10 6h10"/></svg>To-do list</a>
+        <a href="/calendar" id="nav-calendar" hidden><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18m-14 4h3m3 0h4m-10 3h3"/></svg>Calendar</a>
       </nav>
       <div class="rail-controls">
         <button type="button" class="settings-button" id="open-global-search" aria-label="Search everything" aria-controls="global-search-panel" aria-expanded="false" hidden>
           <i class="icon icon-search" aria-hidden="true"></i><span>Search</span>
         </button>
         <button type="button" class="settings-button" id="open-settings" aria-label="Settings" aria-haspopup="dialog">
-          <i class="icon icon-settings" aria-hidden="true">⚙</i><span>Settings</span>
+          <i class="icon icon-settings" aria-hidden="true"></i><span>Settings</span>
         </button>
         <details class="theme-picker" id="theme-picker">
           <summary class="theme-button" aria-label="Appearance"><i class="icon icon-theme" aria-hidden="true"></i><span id="theme-label">Docs</span><i class="chevron" aria-hidden="true"></i></summary>
@@ -77,30 +88,31 @@
         <section class="card home-card focus-card" aria-labelledby="focus-title">
           <header class="home-card-heading">
             <span class="section-icon" aria-hidden="true"><i class="icon icon-clock"></i></span>
-            <h2 id="focus-title">Focus timer</h2>
+            <h2 id="focus-title" tabindex="-1">Focus timer</h2>
           </header>
           <div class="focus-display" id="focus-display">
             <div class="focus-track">
               <span id="focus-time" role="timer" aria-label="Time remaining">25:00</span>
-              <span id="focus-label">Ready to focus</span>
+              <span id="focus-label" role="status">Ready to focus</span>
             </div>
           </div>
-          <div class="focus-controls">
+          <form id="focus-form" class="focus-controls" novalidate>
             <div class="focus-presets" id="focus-presets" role="group" aria-label="Focus duration">
               <button type="button" data-minutes="5" aria-pressed="false">5 min</button>
               <button type="button" data-minutes="15" aria-pressed="false">15 min</button>
               <button type="button" data-minutes="25" aria-pressed="true">25 min</button>
+              <button type="button" id="focus-custom-option" aria-pressed="false" aria-controls="custom-focus" hidden>Custom</button>
+            </div>
+            <div id="custom-focus" class="custom-focus" hidden>
+              <label for="custom-minutes">Minutes <small>1–180</small></label>
+              <input id="custom-minutes" type="number" min="1" max="180" step="1" inputmode="numeric" data-error="custom-minutes-error" aria-describedby="custom-minutes-error">
+              <p id="custom-minutes-error" class="field-error" aria-live="polite" hidden></p>
             </div>
             <div class="focus-actions">
+              <button type="submit" class="primary" id="toggle-focus">Start focus</button>
               <button type="button" class="secondary" id="reset-focus">Reset</button>
-              <button type="button" class="primary" id="toggle-focus">Start</button>
             </div>
-            <form id="custom-focus" class="custom-focus" novalidate hidden>
-              <label for="custom-minutes">Custom minutes</label>
-              <div class="inline-input"><input id="custom-minutes" type="number" min="1" max="180" step="1" required inputmode="numeric" placeholder="1–180" data-error="custom-minutes-error" aria-describedby="custom-minutes-error"><button type="submit" class="secondary" id="set-custom-focus">Set timer</button></div>
-              <p id="custom-minutes-error" class="field-error" aria-live="polite" hidden></p>
-            </form>
-          </div>
+          </form>
         </section>
 
         <section class="card home-card" aria-labelledby="activity-title">
@@ -132,21 +144,31 @@
     </div>
     <section id="calendar-view" class="calendar-view" aria-labelledby="calendar-title" hidden>
       <header class="page-heading">
-        <h1 id="calendar-title" tabindex="-1">Calendar</h1>
-        <button type="button" class="primary" id="new-event">Add event</button>
+        <div>
+          <h1 id="calendar-title" tabindex="-1">Calendar</h1>
+          <p>See events, task deadlines, and journal entries by date.</p>
+        </div>
+        <div class="calendar-page-actions">
+          <div class="view-switch" role="group" aria-label="Calendar view">
+            <button type="button" id="calendar-view-month" aria-pressed="true">Month</button>
+            <button type="button" id="calendar-view-linear" aria-pressed="false">Linear</button>
+          </div>
+          <button type="button" class="primary" id="new-event">Add event</button>
+        </div>
       </header>
       <div class="calendar-layout">
         <section class="card calendar-board" aria-labelledby="calendar-month">
           <div class="calendar-toolbar">
             <h2 id="calendar-month" aria-live="polite"></h2>
-            <div class="workspace-actions" aria-label="Choose a month">
-              <button type="button" class="secondary" id="previous-month" aria-label="Previous month">‹</button>
+            <div class="workspace-actions" id="calendar-period-controls" role="group" aria-label="Choose a month">
+              <button type="button" class="secondary icon-button" id="previous-month" aria-label="Previous month">‹</button>
               <button type="button" class="secondary" id="calendar-today">Today</button>
-              <button type="button" class="secondary" id="next-month" aria-label="Next month">›</button>
+              <button type="button" class="secondary icon-button" id="next-month" aria-label="Next month">›</button>
             </div>
           </div>
-          <div class="calendar-weekdays" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
-          <div class="calendar-grid" id="calendar-days" aria-label="Calendar days"></div>
+          <div class="calendar-weekdays" id="calendar-weekdays" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+          <div class="calendar-grid" id="calendar-days" role="group" aria-label="Calendar days" aria-describedby="calendar-keyboard"></div>
+          <p class="sr-only" id="calendar-keyboard">Use arrow keys to move by day or week.</p>
           <div class="calendar-legend" aria-label="Calendar markers">
             <span class="calendar-tag" data-kind="event">Events</span>
             <span class="calendar-tag" data-kind="task">Tasks due</span>
@@ -155,8 +177,14 @@
           <p id="calendar-error" class="field-error" role="alert" hidden></p>
         </section>
         <section class="card calendar-agenda" aria-labelledby="calendar-day-title">
-          <h2 id="calendar-day-title" aria-live="polite"></h2>
+          <div class="agenda-heading">
+            <p>Selected day</p>
+            <h2 id="calendar-day-title" aria-live="polite"></h2>
+          </div>
           <div id="calendar-agenda"></div>
+          <div class="agenda-actions">
+            <button type="button" class="secondary" id="calendar-add-task" aria-haspopup="dialog">Add task for this day</button>
+          </div>
         </section>
       </div>
     </section>
@@ -280,8 +308,17 @@
   <aside class="search-sidebar" id="global-search-panel" aria-labelledby="global-search-title" hidden>
     <header class="search-sidebar-header"><h2 id="global-search-title">Search everything</h2><button type="button" class="dialog-close" id="close-global-search" aria-label="Close search">×</button></header>
     <div class="search-sidebar-body">
-      <label class="sr-only" for="global-query">Search entries, tasks, and events</label>
-      <input id="global-query" type="search" placeholder="Search your workspace…" autocomplete="off">
+      <div class="search-sidebar-controls">
+        <label class="sr-only" for="global-query">Search entries, tasks, and events</label>
+        <input id="global-query" type="search" placeholder="Search workspace…" autocomplete="off">
+        <label class="sr-only" for="global-kind">Result type</label>
+        <select id="global-kind">
+          <option value="">All types</option>
+          <option value="journal">Journal</option>
+          <option value="task">Tasks</option>
+          <option value="event" hidden disabled>Events</option>
+        </select>
+      </div>
       <p id="global-search-status" class="workspace-hint" role="status"></p>
       <div id="global-results" class="global-results"></div>
     </div>
@@ -340,7 +377,7 @@
     <form id="event-form" novalidate>
       <header class="dialog-header"><h2 id="event-title">New event</h2></header>
       <div class="workspace-dialog-body">
-        <div><label class="field-label" for="event-name">Event title</label><input id="event-name" name="title" maxlength="180" required data-error="event-name-error" aria-describedby="event-name-error"><p id="event-name-error" class="field-error" aria-live="polite" hidden></p></div>
+        <div><label class="field-label" for="event-name">Event title</label><input type="text" id="event-name" name="title" maxlength="180" required data-error="event-name-error" aria-describedby="event-name-error"><p id="event-name-error" class="field-error" aria-live="polite" hidden></p></div>
         <div class="event-fields">
           <div><label for="event-start-day">Start date</label><input id="event-start-day" name="start_day" type="date" max="9999-12-31" required data-error="event-start-day-error" aria-describedby="event-start-day-error"><p id="event-start-day-error" class="field-error" aria-live="polite" hidden></p></div>
           <div><label for="event-end-day">End date <small>optional</small></label><input id="event-end-day" name="end_day" type="date" max="9999-12-31" data-error="event-end-day-error" aria-describedby="event-end-day-error"><p id="event-end-day-error" class="field-error" aria-live="polite" hidden></p></div>
@@ -348,7 +385,7 @@
           <div><label for="event-end-time">End time</label><input id="event-end-time" name="end_time" type="time" data-error="event-end-time-error" aria-describedby="event-end-time-error"><p id="event-end-time-error" class="field-error" aria-live="polite" hidden></p></div>
         </div>
         <p class="workspace-hint">Leave both times blank for an all-day event.</p>
-        <label class="field-label" for="event-notes">Notes <small>optional</small></label><textarea id="event-notes" name="notes" maxlength="3000" rows="3"></textarea>
+        <div><label class="field-label" for="event-notes">Notes <small>optional</small></label><textarea id="event-notes" name="notes" maxlength="3000" rows="3"></textarea></div>
         <p id="event-error" class="field-error" role="alert" hidden></p>
       </div>
       <footer class="dialog-footer"><button type="button" class="text-button delete" id="delete-event" hidden>Delete event</button><button type="button" class="secondary" id="close-event">Cancel</button><button type="submit" class="primary" id="save-event">Save event</button></footer>
@@ -358,12 +395,16 @@
     <form id="source-task-form" novalidate>
       <header class="dialog-header"><h2 id="source-task-title">Create task from journal</h2></header>
       <div class="workspace-dialog-body">
-        <label class="field-label" for="source-task-text">Task name</label>
-        <input id="source-task-text" required maxlength="300" data-error="source-task-text-error" aria-describedby="source-task-text-error">
-        <p id="source-task-text-error" class="field-error" aria-live="polite" hidden></p>
-        <label class="field-label" for="source-task-due">Due date <small>optional</small></label>
-        <input id="source-task-due" type="date" max="9999-12-31" data-error="source-task-due-error" aria-describedby="source-task-due-error">
-        <p id="source-task-due-error" class="field-error" aria-live="polite" hidden></p>
+        <div>
+          <label class="field-label" for="source-task-text">Task name</label>
+          <input type="text" id="source-task-text" required maxlength="300" data-error="source-task-text-error" aria-describedby="source-task-text-error">
+          <p id="source-task-text-error" class="field-error" aria-live="polite" hidden></p>
+        </div>
+        <div>
+          <label class="field-label" for="source-task-due">Due date <small id="source-task-optional">optional</small></label>
+          <input id="source-task-due" type="date" max="9999-12-31" data-error="source-task-due-error" aria-describedby="source-task-due-error">
+          <p id="source-task-due-error" class="field-error" aria-live="polite" hidden></p>
+        </div>
         <p id="source-task-error" class="field-error" role="alert" hidden></p>
       </div>
       <footer class="dialog-footer"><button type="button" class="secondary" id="close-source-task">Cancel</button><button type="submit" class="primary" id="save-source-task">Create task</button></footer>

@@ -19,7 +19,9 @@ CADENCES = ('none', 'daily', 'weekly', 'monthly')
 THEMES = ('light', 'dark', 'terminal', 'contrast', 'pink')
 UNDO_SECONDS = 30
 DELETABLE = ('entries', 'tasks', 'subtasks', 'calendar_events')
-SHORTCUT_ACTIONS = {'home', 'journal', 'tasks', 'settings', 'create', 'search', 'save'}
+LEGACY_SHORTCUT_ACTIONS = {'home', 'journal', 'tasks', 'settings', 'create', 'search', 'save'}
+SHORTCUT_ACTIONS = LEGACY_SHORTCUT_ACTIONS | {'calendar', 'planner', 'event', 'journalTask', 'focusToggle',
+                                             'focusReset', 'undo', 'theme'}
 SHORTCUT = re.compile(r'(?:Control\+)?(?:Alt\+)?(?:Shift\+)?(?:Meta\+)?(?:Key[A-Z]|Digit[0-9]|Enter|Comma)')
 SCHEMA = '''
 CREATE TABLE IF NOT EXISTS entries (
@@ -356,9 +358,13 @@ class Store:
                 db.execute('UPDATE calendar_events SET title = ?, start_day = ?, end_day = ?, start_time = ?, '
                            'end_time = ?, notes = ? WHERE id = ?', (*fields, event_id))
 
-    def preferences(self, _query):
+    def preferences(self, query):
         with self.connection() as db:
-            return {row['name']: json.loads(row['value']) for row in db.execute('SELECT name, value FROM preferences')}
+            saved = {row['name']: json.loads(row['value']) for row in db.execute('SELECT name, value FROM preferences')}
+        if 'shortcuts' in saved and query.get('shortcuts') != ['expanded']:
+            saved['shortcuts'] = {action: value for action, value in saved['shortcuts'].items()
+                                  if action in LEGACY_SHORTCUT_ACTIONS}
+        return saved
 
     def home(self, _query):
         today = date.today()
@@ -395,7 +401,7 @@ class Store:
             choice(data['motion'], ('system', 'reduce'), 'motion setting')
         if 'shortcuts' in data:
             shortcuts = data['shortcuts']
-            if not isinstance(shortcuts, dict) or shortcuts.keys() != SHORTCUT_ACTIONS:
+            if not isinstance(shortcuts, dict) or shortcuts.keys() not in (LEGACY_SHORTCUT_ACTIONS, SHORTCUT_ACTIONS):
                 raise InputError('Choose a valid keyboard shortcut.')
             assigned = set()
             for shortcut in shortcuts.values():
@@ -416,6 +422,13 @@ class Store:
                     or ends_at is not None and (type(ends_at) is not int or not 0 < ends_at <= 8640000000000000)):
                 raise InputError('Choose a valid focus timer.')
         with self.connection(write=True) as db:
+            if 'shortcuts' in data and shortcuts.keys() == LEGACY_SHORTCUT_ACTIONS:
+                row = db.execute("SELECT value FROM preferences WHERE name = 'shortcuts'").fetchone()
+                if row:
+                    saved = json.loads(row['value'])
+                    retained = {action: value if value not in assigned else None for action, value in saved.items()
+                                if action in SHORTCUT_ACTIONS - LEGACY_SHORTCUT_ACTIONS}
+                    data['shortcuts'] = {**retained, **shortcuts}
             db.executemany(f'INSERT INTO preferences (name, value) VALUES (?, ?) '
                            f'ON CONFLICT ({self.preference_key}) DO UPDATE SET value = excluded.value',
                            ((key, json.dumps(value)) for key, value in data.items()))
@@ -429,10 +442,7 @@ class Handler(BaseHTTPRequestHandler):
         '/settings.js': ('settings.js', 'text/javascript'),
         '/accounts.js': ('accounts.js', 'text/javascript'),
         '/workspace.js': ('workspace.js', 'text/javascript'),
-        '/fonts/courier-prime-regular.woff2': ('fonts/courier-prime-regular.woff2', 'font/woff2'),
-        '/fonts/courier-prime-regular-ext.woff2': ('fonts/courier-prime-regular-ext.woff2', 'font/woff2'),
-        '/fonts/courier-prime-bold.woff2': ('fonts/courier-prime-bold.woff2', 'font/woff2'),
-        '/fonts/courier-prime-bold-ext.woff2': ('fonts/courier-prime-bold-ext.woff2', 'font/woff2'),
+        '/fonts/InstrumentSans-Regular.ttf': ('fonts/InstrumentSans-Regular.ttf', 'font/ttf'),
     }
 
     @property
@@ -474,7 +484,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if url.path == '/api/features':
             self.store.clear_expired_deletions()
-            self.send_json(200, {'workspaceTools': True})
+            self.send_json(200, {'workspaceTools': True, 'expandedShortcuts': True})
             return
         views = {'/api/journal': self.store.journal, '/api/tasks': self.store.tasks,
                  '/api/preferences': self.store.preferences, '/api/home': self.store.home,

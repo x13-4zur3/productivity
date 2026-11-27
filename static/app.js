@@ -36,8 +36,12 @@ let viewAnimation;
 let homeStale = true;
 let homeVersion = 0;
 let noticeTimer;
-let focus = { minutes: 25, remaining: 25 * 60000, endsAt: null };
+const focusMinute = 60000;
+const focusCompleteMessage = 'Focus session complete. Take a breath :)';
+let focus = { minutes: 25, remaining: 25 * focusMinute, endsAt: null };
+let customFocusSelected = false;
 let savingFocus = false;
+let announcedFocusEnd;
 
 function show(id, visible) {
   $(id).hidden = !visible;
@@ -156,84 +160,139 @@ function focusRemaining() {
   return focus.endsAt ? Math.max(0, Math.min(focus.remaining, focus.endsAt - Date.now())) : focus.remaining;
 }
 
+function focusTime(milliseconds) {
+  const seconds = Math.ceil(milliseconds / 1000);
+  return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+function customFocusMinutes(input) {
+  const minutes = input.valueAsNumber;
+  return Number.isInteger(minutes) && minutes >= 1 && minutes <= 180 ? minutes : null;
+}
+
 function renderFocus() {
+  const total = focus.minutes * focusMinute;
   const remaining = focusRemaining();
-  const seconds = Math.ceil(remaining / 1000);
-  const value = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
   const running = remaining > 0 && Boolean(focus.endsAt);
+  const paused = !running && remaining > 0 && remaining < total;
   const complete = remaining === 0;
-  show('footer-focus', running);
-  if (running) text('footer-focus', `Focus · ${value}`);
+  show('footer-focus', running || paused);
+  if (running || paused) text('footer-focus', `${paused ? 'Focus paused' : 'Focus'} · ${focusTime(remaining)}`);
+
   if (currentView === 'home') {
-    text('focus-time', value);
-    text('focus-label', complete ? 'Session complete!' : running ? 'In focus' :
-      remaining < focus.minutes * 60000 ? 'Paused' : 'Ready to focus');
-    text('toggle-focus', running ? 'Pause' : 'Start');
-    $('focus-display').style.setProperty('--progress', `${100 * (1 - remaining / (focus.minutes * 60000))}%`);
-    $('focus-display').dataset.complete = complete;
-    $('focus-presets').querySelectorAll('button').forEach((button) => {
-      button.setAttribute('aria-pressed', Number(button.dataset.minutes) === focus.minutes);
-      button.disabled = running || savingFocus;
+    const input = $('custom-minutes');
+    const custom = workspaceTools && customFocusSelected;
+    const minutes = custom ? customFocusMinutes(input) : null;
+    const changedDuration = minutes !== null && minutes !== focus.minutes;
+    const preview = changedDuration && !running && !paused;
+    text('focus-time', focusTime(preview ? minutes * focusMinute : remaining));
+    text('focus-label', running ? 'In focus' : paused ? 'Paused' : complete && !preview ? 'Session complete' : 'Ready to focus');
+    text('toggle-focus', running ? 'Pause' : paused && !changedDuration ? 'Resume' :
+      complete && !changedDuration ? 'Start again' : 'Start focus');
+    const progress = preview ? 0 : 100 * (1 - remaining / total);
+    $('focus-display').style.setProperty('--progress', `${progress}%`);
+    $('focus-display').dataset.complete = complete && !preview;
+    $('focus-presets').querySelectorAll('[data-minutes]').forEach((button) => {
+      button.setAttribute('aria-pressed', String(!custom && Number(button.dataset.minutes) === focus.minutes));
+      button.disabled = running;
+      button.setAttribute('aria-disabled', String(savingFocus || running));
     });
-    $('toggle-focus').disabled = savingFocus;
-    $('reset-focus').disabled = savingFocus;
-    $('set-custom-focus').disabled = running || savingFocus;
+    $('focus-custom-option').setAttribute('aria-pressed', String(custom));
+    $('focus-custom-option').disabled = running;
+    $('focus-custom-option').setAttribute('aria-disabled', String(savingFocus || running));
+    show('custom-focus', custom);
+    input.disabled = running;
+    $('toggle-focus').setAttribute('aria-disabled', String(savingFocus));
+    $('reset-focus').setAttribute('aria-disabled', String(savingFocus));
   }
-  if (complete && focus.endsAt && !savingFocus) {
-    notice('Focus session complete. Take a breath :)');
+
+  if (complete && focus.endsAt && focus.endsAt !== announcedFocusEnd && !savingFocus) {
+    announcedFocusEnd = focus.endsAt;
+    notice(focusCompleteMessage);
     void saveFocus({ ...focus, remaining: 0, endsAt: null });
   }
 }
 
-async function saveFocus(value) {
+async function saveFocus(value, custom = customFocusSelected) {
   const previous = focus;
+  const previousCustom = customFocusSelected;
   savingFocus = true;
   focus = value;
+  customFocusSelected = custom;
   renderFocus();
   try { await request('/api/preferences', 'PATCH', { focus: value }); }
   catch (error) {
     focus = previous;
+    customFocusSelected = previousCustom;
     notice(error.message, true);
   } finally {
     savingFocus = false;
+    renderFocus();
   }
 }
 
-function setupFocus() {
-  $('toggle-focus').addEventListener('click', () => {
-    const remaining = focusRemaining();
-    if (focus.endsAt && remaining) void saveFocus({ ...focus, remaining, endsAt: null });
-    else {
-      const duration = remaining || focus.minutes * 60000;
-      void saveFocus({ ...focus, remaining: duration, endsAt: Date.now() + duration });
-    }
-  });
-  const reset = (minutes) => saveFocus({ minutes, remaining: minutes * 60000, endsAt: null });
-  $('reset-focus').addEventListener('click', () => void reset(focus.minutes));
-  $('focus-presets').addEventListener('click', (event) => {
-    const minutes = Number(event.target.dataset.minutes);
-    if (minutes) void reset(minutes);
-  });
-  $('custom-focus').addEventListener('submit', (event) => {
-    event.preventDefault();
-    if ($('set-custom-focus').disabled) return;
+function toggleFocusTimer() {
+  if (savingFocus) return;
+  const remaining = focusRemaining();
+  if (focus.endsAt && remaining) {
+    void saveFocus({ ...focus, remaining, endsAt: null });
+    return;
+  }
+
+  let minutes = focus.minutes;
+  if (currentView === 'home' && workspaceTools && customFocusSelected) {
     const input = $('custom-minutes');
-    const minutes = input.valueAsNumber;
-    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 180) {
+    minutes = customFocusMinutes(input);
+    if (minutes === null) {
       fieldMessage(input, 'Enter a whole number from 1 to 180 minutes.');
       return;
     }
     fieldMessage(input);
-    void reset(minutes);
+  }
+  const duration = minutes === focus.minutes && remaining ? remaining : minutes * focusMinute;
+  if ($('notice-message').textContent === focusCompleteMessage) hideNotice();
+  void saveFocus({ minutes, remaining: duration, endsAt: Date.now() + duration });
+}
+
+function resetFocusTimer() {
+  if (savingFocus) return;
+  const input = $('custom-minutes');
+  input.value = focus.minutes;
+  fieldMessage(input);
+  void saveFocus({ minutes: focus.minutes, remaining: focus.minutes * focusMinute, endsAt: null });
+}
+
+function setupFocus() {
+  $('focus-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    toggleFocusTimer();
   });
+  $('reset-focus').addEventListener('click', resetFocusTimer);
+  $('focus-presets').addEventListener('click', (event) => {
+    const minutes = Number(event.target.dataset.minutes);
+    if (!minutes || savingFocus) return;
+    fieldMessage($('custom-minutes'));
+    void saveFocus({ minutes, remaining: minutes * focusMinute, endsAt: null }, false);
+  });
+  $('focus-custom-option').addEventListener('click', () => {
+    if (savingFocus) return;
+    const input = $('custom-minutes');
+    if (!customFocusSelected) input.value = focus.minutes;
+    customFocusSelected = true;
+    renderFocus();
+    input.focus();
+    input.select();
+  });
+  $('custom-minutes').addEventListener('input', renderFocus);
 }
 
 async function loadPreferences() {
   try {
-    const saved = await request('/api/preferences');
+    const saved = await request(expandedShortcuts ? '/api/preferences?shortcuts=expanded' : '/api/preferences');
     if (saved.focus) {
       focus = saved.focus;
-      if (![5, 15, 25].includes(focus.minutes)) $('custom-minutes').value = focus.minutes;
+      customFocusSelected = ![5, 15, 25].includes(focus.minutes);
+      if (customFocusSelected) $('custom-minutes').value = focus.minutes;
     }
     const legacy = accountState.server ? null : getPreference('theme');
     const theme = saved.theme || (Object.hasOwn(themes, legacy) ? legacy : 'light');
@@ -819,7 +878,9 @@ function activate(url, focusHeading = false) {
   } else if (view === 'journal' && /^#entry-\d+$/.test(url.hash)) {
     void showSourceEntry(url.hash);
   } else if (home && url.hash === '#focus-title') {
-    $('focus-title').scrollIntoView({ block: 'center' });
+    const heading = $('focus-title');
+    if (focusHeading) heading.focus({ preventScroll: true });
+    heading.scrollIntoView({ block: 'center' });
   } else if (changed && focusHeading) {
     $(home ? 'home-greeting' : 'page-title').focus({ preventScroll: true });
   }
@@ -846,24 +907,28 @@ function setupNavigation() {
 }
 
 function setupShortcuts() {
-  const search = openGlobalSearch;
   const save = () => {
     if (currentView !== 'journal' && currentView !== 'tasks') return;
     const task = currentView === 'tasks';
     const button = $(task ? 'save-task' : 'save-entry');
     if (!button.disabled) button.form.requestSubmit(button);
   };
-  const actions = { settings: openSettings, create: focusComposer, search, save };
+  const actions = {
+    settings: openSettings, create: focusComposer, search: toggleGlobalSearch, save,
+    planner: openWeeklyPlanner, event: createCalendarEvent, journalTask: openJournalTaskFromSelection,
+    focusToggle: toggleFocusTimer, focusReset: resetFocusTimer, undo: undoLatestDeletion,
+    theme: () => {
+      const picker = $('theme-picker');
+      picker.open = !picker.open;
+      picker.querySelector('summary').focus();
+    },
+  };
   document.addEventListener('keydown', (event) => {
     if (!currentView || event.defaultPrevented || event.isComposing || event.repeat || document.querySelector('dialog[open]')) return;
     const shortcut = shortcutCombo(event);
     if (!shortcut) return;
-    const action = Object.keys(shortcutActions).find((key) => preferences.shortcuts[key] === shortcut);
-    if (!action && (shortcut === 'Control+KeyK' || shortcut === 'Meta+KeyK')) {
-      event.preventDefault();
-      openGlobalSearch();
-      return;
-    }
+    const action = availableShortcutActions().find((key) => preferences.shortcuts[key] === shortcut)
+      || (shortcut === searchShortcutAlias() ? 'search' : null);
     if (!action) return;
     event.preventDefault();
     if (Object.hasOwn(routes, action)) navigate(routes[action]);
@@ -871,6 +936,40 @@ function setupShortcuts() {
   });
 }
 
+async function setupWindowTitlebar() {
+  const controls = window.pywebview?.api;
+  if (!controls?.window_chrome) return;
+  window.removeEventListener('pywebviewready', setupWindowTitlebar);
+  const bar = $('window-titlebar');
+  const maximize = $('window-maximize');
+  const updateState = async (action = 'state') => {
+    try {
+      const state = await controls.window_chrome(action);
+      if (!state) return;
+      const label = state.maximized ? 'Restore' : 'Maximize';
+      maximize.title = label;
+      maximize.setAttribute('aria-label', label + ' window');
+      bar.dataset.maximized = String(state.maximized);
+      document.documentElement.classList.add('custom-title');
+      show('window-titlebar', true);
+    } catch {
+      if (action !== 'state') notice('The window control did not respond.', true);
+    }
+  };
+  for (const action of ['minimize', 'maximize', 'close']) {
+    $('window-' + action).addEventListener('click', () => void updateState(action));
+  }
+  $('window-drag').addEventListener('dblclick', () => void updateState('maximize'));
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(updateState, 100);
+  });
+  await updateState();
+}
+
+window.addEventListener('pywebviewready', setupWindowTitlebar, { once: true });
+if (window.pywebview?.api?.window_chrome) void setupWindowTitlebar();
 setupTheme();
 setupSettings();
 setupAccounts();
