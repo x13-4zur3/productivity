@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: productivity-accounts
+    name: productivity-
     runtime: python
     plan: free
     buildCommand: python -m pip install -r requirements-server.txt

@@ -12,7 +12,7 @@ SetCompressor /SOLID lzma
 
 !define APP_NAME "Productivity"
 !define APP_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Productivity"
-!define APP_VERSION "1.0.0"
+!define APP_VERSION "1.2.0"
 !define WEBVIEW_KEY "Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
 
 Name "${APP_NAME}"
@@ -22,7 +22,7 @@ OutFile "${OUTPUT}"
 InstallDir "$LOCALAPPDATA\Programs\Productivity"
 InstallDirRegKey HKCU "${APP_KEY}" "InstallLocation"
 RequestExecutionLevel user
-VIProductVersion "1.0.0.0"
+VIProductVersion "1.2.0.0"
 VIAddVersionKey /LANG=1033 "ProductName" "${APP_NAME}"
 VIAddVersionKey /LANG=1033 "FileDescription" "Productivity"
 VIAddVersionKey /LANG=1033 "FileVersion" "${APP_VERSION}"
