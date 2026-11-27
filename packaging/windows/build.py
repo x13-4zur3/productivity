@@ -12,13 +12,11 @@ from tempfile import TemporaryDirectory
 from urllib.request import urlretrieve
 from zipfile import ZipFile
 
-
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 VERSION = '3.13.12'
 ARCHIVE = f'python-{VERSION}-embed-amd64.zip'
 CHECKSUM = '76f238f606250c87c6beac75dccd35ee99070a13490555936abb6cb64ecce3d0'
-
 
 def locate_compiler(requested):
     compiler = shutil.which(requested or 'makensis')
