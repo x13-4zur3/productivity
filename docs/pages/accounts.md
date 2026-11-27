@@ -10,6 +10,8 @@ Choose **Use local data** to work with the journal and tasks stored on your devi
 
 The official Windows installer includes a service address. For a custom build, enter the HTTPS address your server administrator provides. The sign-in form uses a Productivity username and password.
 
+You can open the same account workspace in the [web app](https://productivity-accounts.onrender.com) when you use the hosted Productivity service. For features such as Calendar and Weekly planner, the desktop app and account service both need the 1.1.0 code. [Host the account service](hosting.md)
+
 !!! note "Your local workspace and account workspace are separate"
     A new account starts empty. Choose **Use local data** to return to the journal and tasks stored on that computer.
 

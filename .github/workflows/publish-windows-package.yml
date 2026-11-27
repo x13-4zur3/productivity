@@ -2,6 +2,14 @@ name: Publish Productivity Windows package
 
 on:
   workflow_dispatch:
+    inputs:
+      installer_sha256:
+        description: SHA-256 of the installer uploaded to the v1.1.0 release
+        required: true
+        type: string
+
+env:
+  RELEASE_VERSION: 1.1.0
 
 permissions:
   packages: write
@@ -11,15 +19,18 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Download and verify ORAS and the release installer
+        env:
+          INSTALLER_SHA256: ${{ inputs.installer_sha256 }}
         run: |
+          [[ "$INSTALLER_SHA256" =~ ^[[:xdigit:]]{64}$ ]]
           curl --fail --silent --show-error --location --retry 3 \
             -o oras.tar.gz https://github.com/oras-project/oras/releases/download/v1.4.0/oras_1.4.0_linux_amd64.tar.gz
           curl --fail --silent --show-error --location --retry 3 \
-            -o Productivity-Setup-x64.exe "https://github.com/$GITHUB_REPOSITORY/releases/download/v1.0.0/Productivity-Setup-x64.exe"
+            -o Productivity-Setup-x64.exe "https://github.com/$GITHUB_REPOSITORY/releases/download/v${RELEASE_VERSION}/Productivity-Setup-x64.exe"
           sha256sum --check <<'CHECKSUMS'
           d8e1dce2fd8ce996f1d901845b688eb0cf505a6082897606f053825bb47935d1  oras.tar.gz
-          adafbd85c738da31c769f941b4a5c52066c7961576a9cc6f6db9de2ea5932d93  Productivity-Setup-x64.exe
           CHECKSUMS
+          printf '%s  Productivity-Setup-x64.exe\n' "${INSTALLER_SHA256,,}" | sha256sum --check
           tar -xzf oras.tar.gz oras
 
       - name: Publish to GitHub Packages
@@ -27,6 +38,6 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           printf '%s' "$GHCR_TOKEN" | ./oras login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
-          ./oras push "ghcr.io/${GITHUB_REPOSITORY,,}:1.0.0" \
+          ./oras push "ghcr.io/${GITHUB_REPOSITORY,,}:${RELEASE_VERSION}" \
             --annotation "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
             Productivity-Setup-x64.exe:application/octet-stream

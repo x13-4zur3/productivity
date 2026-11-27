@@ -16,7 +16,7 @@ from zipfile import ZipFile
 
 PACKAGING = Path(__file__).resolve().parent
 ROOT = PACKAGING.parent
-VERSION = '1.0.0'
+VERSION = '1.1.0'
 APP_FILES = ('app.py', 'desktop_server.py', 'desktop_accounts.py', 'account-service.json',
              'import_browser_data.py', 'README.md', 'ACCOUNTS.md', 'LICENSE')
 PYTHON_BUILD = '20261124'

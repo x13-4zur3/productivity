@@ -1,6 +1,6 @@
 # Productivity accounts with PostgreSQL
 
-Productivity 1.0.0 supports username and password accounts. The desktop app connects to the Productivity account service. The service connects to PostgreSQL and stores each account’s journal, tasks, preferences, and focus timer.
+Productivity 1.1.0 supports username and password accounts. The desktop app connects to the Productivity account service. The service connects to PostgreSQL and stores each account’s journal, tasks, preferences, and focus timer.
 
 ## 1. Create the database
 
