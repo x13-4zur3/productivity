@@ -1,8 +1,8 @@
 'use strict';
 
 const $ = (id) => document.getElementById(id);
-const routes = { home: '/', journal: '/journal', tasks: '/todos' };
-const routeViews = { '/': 'home', '/journal': 'journal', '/todos': 'tasks' };
+const routes = { home: '/', journal: '/journal', tasks: '/todos', calendar: '/calendar' };
+const routeViews = { '/': 'home', '/journal': 'journal', '/todos': 'tasks', '/calendar': 'calendar' };
 const lists = { journal: 'journal-records', tasks: 'task-records' };
 const reports = { journal: null, tasks: null };
 const reportVersions = { journal: 0, tasks: 0 };
@@ -10,7 +10,7 @@ const pendingReports = {};
 const motionQuery = matchMedia('(prefers-reduced-motion: reduce)');
 const moods = { happy: ['Happy', ':D'], neutral: ['Neutral', ':|'], sad: ['Sad', ':('], loved: ['Loved', '<3'] };
 const priorities = { low: 'Low', medium: 'Medium', high: 'High' };
-const themes = { light: 'Docs', dark: 'Docs Dark', terminal: 'Terminal', contrast: 'High Contrast' };
+const themes = { light: 'Docs', dark: 'Docs Dark', terminal: 'Terminal', contrast: 'High Contrast', pink: 'Pink' };
 const mediumDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
 const fullDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'full' });
 const weekday = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
@@ -36,8 +36,12 @@ let viewAnimation;
 let homeStale = true;
 let homeVersion = 0;
 let noticeTimer;
-let focus = { minutes: 25, remaining: 25 * 60000, endsAt: null };
+const focusMinute = 60000;
+const focusCompleteMessage = 'Focus session complete. Take a breath :)';
+let focus = { minutes: 25, remaining: 25 * focusMinute, endsAt: null };
+let customFocusSelected = false;
 let savingFocus = false;
+let announcedFocusEnd;
 
 function show(id, visible) {
   $(id).hidden = !visible;
@@ -156,69 +160,140 @@ function focusRemaining() {
   return focus.endsAt ? Math.max(0, Math.min(focus.remaining, focus.endsAt - Date.now())) : focus.remaining;
 }
 
+function focusTime(milliseconds) {
+  const seconds = Math.ceil(milliseconds / 1000);
+  return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+function customFocusMinutes(input) {
+  const minutes = input.valueAsNumber;
+  return Number.isInteger(minutes) && minutes >= 1 && minutes <= 180 ? minutes : null;
+}
+
 function renderFocus() {
+  const total = focus.minutes * focusMinute;
   const remaining = focusRemaining();
-  const seconds = Math.ceil(remaining / 1000);
-  const value = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
   const running = remaining > 0 && Boolean(focus.endsAt);
+  const paused = !running && remaining > 0 && remaining < total;
   const complete = remaining === 0;
-  show('footer-focus', running);
-  if (running) text('footer-focus', `Focus · ${value}`);
+  show('footer-focus', running || paused);
+  if (running || paused) text('footer-focus', `${paused ? 'Focus paused' : 'Focus'} · ${focusTime(remaining)}`);
+
   if (currentView === 'home') {
-    text('focus-time', value);
-    text('focus-label', complete ? 'Session complete!' : running ? 'In focus' :
-      remaining < focus.minutes * 60000 ? 'Paused' : 'Ready to focus');
-    text('toggle-focus', running ? 'Pause' : 'Start');
-    $('focus-display').style.setProperty('--progress', `${100 * (1 - remaining / (focus.minutes * 60000))}%`);
-    $('focus-display').dataset.complete = complete;
-    $('focus-presets').querySelectorAll('button').forEach((button) => {
-      button.setAttribute('aria-pressed', Number(button.dataset.minutes) === focus.minutes);
-      button.disabled = running || savingFocus;
+    const input = $('custom-minutes');
+    const custom = workspaceTools && customFocusSelected;
+    const minutes = custom ? customFocusMinutes(input) : null;
+    const changedDuration = minutes !== null && minutes !== focus.minutes;
+    const preview = changedDuration && !running && !paused;
+    text('focus-time', focusTime(preview ? minutes * focusMinute : remaining));
+    text('focus-label', running ? 'In focus' : paused ? 'Paused' : complete && !preview ? 'Session complete' : 'Ready to focus');
+    text('toggle-focus', running ? 'Pause' : paused && !changedDuration ? 'Resume' :
+      complete && !changedDuration ? 'Start again' : 'Start focus');
+    const progress = preview ? 0 : 100 * (1 - remaining / total);
+    $('focus-display').style.setProperty('--progress', `${progress}%`);
+    $('focus-display').dataset.complete = complete && !preview;
+    $('focus-presets').querySelectorAll('[data-minutes]').forEach((button) => {
+      button.setAttribute('aria-pressed', String(!custom && Number(button.dataset.minutes) === focus.minutes));
+      button.disabled = running;
+      button.setAttribute('aria-disabled', String(savingFocus || running));
     });
-    $('toggle-focus').disabled = savingFocus;
-    $('reset-focus').disabled = savingFocus;
+    $('focus-custom-option').setAttribute('aria-pressed', String(custom));
+    $('focus-custom-option').disabled = running;
+    $('focus-custom-option').setAttribute('aria-disabled', String(savingFocus || running));
+    show('custom-focus', custom);
+    input.disabled = running;
+    $('toggle-focus').setAttribute('aria-disabled', String(savingFocus));
+    $('reset-focus').setAttribute('aria-disabled', String(savingFocus));
   }
-  if (complete && focus.endsAt && !savingFocus) {
-    notice('Focus session complete. Take a breath :)');
+
+  if (complete && focus.endsAt && focus.endsAt !== announcedFocusEnd && !savingFocus) {
+    announcedFocusEnd = focus.endsAt;
+    notice(focusCompleteMessage);
     void saveFocus({ ...focus, remaining: 0, endsAt: null });
   }
 }
 
-async function saveFocus(value) {
+async function saveFocus(value, custom = customFocusSelected) {
   const previous = focus;
+  const previousCustom = customFocusSelected;
   savingFocus = true;
   focus = value;
+  customFocusSelected = custom;
   renderFocus();
   try { await request('/api/preferences', 'PATCH', { focus: value }); }
   catch (error) {
     focus = previous;
+    customFocusSelected = previousCustom;
     notice(error.message, true);
   } finally {
     savingFocus = false;
+    renderFocus();
   }
 }
 
-function setupFocus() {
-  $('toggle-focus').addEventListener('click', () => {
-    const remaining = focusRemaining();
-    if (focus.endsAt && remaining) void saveFocus({ ...focus, remaining, endsAt: null });
-    else {
-      const duration = remaining || focus.minutes * 60000;
-      void saveFocus({ ...focus, remaining: duration, endsAt: Date.now() + duration });
+function toggleFocusTimer() {
+  if (savingFocus) return;
+  const remaining = focusRemaining();
+  if (focus.endsAt && remaining) {
+    void saveFocus({ ...focus, remaining, endsAt: null });
+    return;
+  }
+
+  let minutes = focus.minutes;
+  if (currentView === 'home' && workspaceTools && customFocusSelected) {
+    const input = $('custom-minutes');
+    minutes = customFocusMinutes(input);
+    if (minutes === null) {
+      fieldMessage(input, 'Enter a whole number from 1 to 180 minutes.');
+      return;
     }
+    fieldMessage(input);
+  }
+  const duration = minutes === focus.minutes && remaining ? remaining : minutes * focusMinute;
+  if ($('notice-message').textContent === focusCompleteMessage) hideNotice();
+  void saveFocus({ minutes, remaining: duration, endsAt: Date.now() + duration });
+}
+
+function resetFocusTimer() {
+  if (savingFocus) return;
+  const input = $('custom-minutes');
+  input.value = focus.minutes;
+  fieldMessage(input);
+  void saveFocus({ minutes: focus.minutes, remaining: focus.minutes * focusMinute, endsAt: null });
+}
+
+function setupFocus() {
+  $('focus-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    toggleFocusTimer();
   });
-  const reset = (minutes) => saveFocus({ minutes, remaining: minutes * 60000, endsAt: null });
-  $('reset-focus').addEventListener('click', () => void reset(focus.minutes));
+  $('reset-focus').addEventListener('click', resetFocusTimer);
   $('focus-presets').addEventListener('click', (event) => {
     const minutes = Number(event.target.dataset.minutes);
-    if (minutes) void reset(minutes);
+    if (!minutes || savingFocus) return;
+    fieldMessage($('custom-minutes'));
+    void saveFocus({ minutes, remaining: minutes * focusMinute, endsAt: null }, false);
   });
+  $('focus-custom-option').addEventListener('click', () => {
+    if (savingFocus) return;
+    const input = $('custom-minutes');
+    if (!customFocusSelected) input.value = focus.minutes;
+    customFocusSelected = true;
+    renderFocus();
+    input.focus();
+    input.select();
+  });
+  $('custom-minutes').addEventListener('input', renderFocus);
 }
 
 async function loadPreferences() {
   try {
-    const saved = await request('/api/preferences');
-    if (saved.focus) focus = saved.focus;
+    const saved = await request(expandedShortcuts ? '/api/preferences?shortcuts=expanded' : '/api/preferences');
+    if (saved.focus) {
+      focus = saved.focus;
+      customFocusSelected = ![5, 15, 25].includes(focus.minutes);
+      if (customFocusSelected) $('custom-minutes').value = focus.minutes;
+    }
     const legacy = accountState.server ? null : getPreference('theme');
     const theme = saved.theme || (Object.hasOwn(themes, legacy) ? legacy : 'light');
     const { name = accountState.username || '', startPage = 'home', motion = 'system', shortcuts = defaultShortcuts } = saved;
@@ -328,6 +403,7 @@ async function updateRecords(view, path, method, data, onSuccess) {
   onSuccess?.();
   homeStale = true;
   if (currentView === 'home') void loadHome();
+  void refreshGlobalSearch();
   await refresh(view);
 }
 
@@ -383,9 +459,9 @@ function renderJournal(data) {
   show('clear-filters', Boolean(selectedTags.size || $('mood-filter').value || $('search').value));
   $('journal-records').innerHTML = data.entries.map((entry) => {
     const [mood, sign] = moods[entry.mood] || moods.neutral;
-    return `<article class="card record" data-id="${entry.id}">
+    return `<article class="card record" id="entry-${entry.id}" data-id="${entry.id}" tabindex="-1">
       <div class="record-top"><div class="record-meta"><time datetime="${escape(entry.created_at)}">${mediumDate.format(new Date(entry.created_at))}</time><span aria-hidden="true">·</span><code class="mood-sign" aria-hidden="true">${escape(sign)}</code>${mood}</div>
-        <div class="actions"><button class="text-button" data-action="edit">Edit</button><button class="text-button delete" data-action="delete">Delete</button></div>
+        <div class="actions">${workspaceTools ? '<button type="button" class="text-button" data-action="create-task">Create task</button>' : ''}<button class="text-button" data-action="edit">Edit</button><button class="text-button delete" data-action="delete">Delete</button></div>
       </div><p class="entry-body">${escape(entry.content)}</p><div class="chips">${entry.tags.map((tag) => tagChip(tag)).join('')}</div>
     </article>`;
   }).join('') || (data.total ? emptyState('search', 'No matching entries', 'Try another search or clear the filters.')
@@ -490,6 +566,7 @@ function setupJournal() {
     $('search').focus();
     void refresh('journal');
   });
+  $('journal-records').addEventListener('pointerdown', keepJournalSelection);
   $('journal-records').addEventListener('click', (event) => {
     const button = event.target.closest('button');
     if (!button) return;
@@ -501,12 +578,12 @@ function setupJournal() {
     const entry = reports.journal?.entries.find((record) => record.id === id);
     if (!entry) return;
     if (button.dataset.action === 'edit') editEntry(entry);
+    if (button.dataset.action === 'create-task') openSourceTask(entry);
     if (button.dataset.action === 'delete') {
       confirmDeletion('entry', entry.content, async () => {
-        await updateRecords('journal', `/api/entries/${id}`, 'DELETE', undefined, () => {
+        await deleteWorkspaceRecord('journal', `/api/entries/${id}`, 'Entry', () => {
           if (editingEntry === id) editEntry(null);
         });
-        notice('Entry deleted.');
       });
     }
   });
@@ -548,7 +625,7 @@ function renderTasks(data) {
     return `<article class="card record task-record" id="task-${task.id}" data-id="${task.id}">
       <div class="record-top"><label class="check-label"><input type="checkbox" data-task-toggle ${task.completed ? 'checked' : ''}><span>${escape(task.text)}</span></label>
         <div class="actions"><span class="priority-control" data-level="${escape(task.priority)}"><select class="priority-select" aria-label="Priority for ${escape(task.text)}" data-priority>${options}</select></span><button class="text-button" type="button" data-action="edit">Edit</button><button class="text-button delete" type="button" data-action="delete">Delete</button></div>
-      </div><div class="record-meta task-meta">${due}${repeat}</div>
+      </div><div class="record-meta task-meta">${due}${repeat}${task.source_entry_id ? `<a href="/journal#entry-${task.source_entry_id}">Source journal entry</a>` : ''}</div>
       <details class="task-details" ${openTasks.has(task.id) ? 'open' : ''}>
         <summary>Subtasks${count ? ` (${done}/${count})` : ''}</summary><ul class="subtasks">${subtasks}</ul>
         <form data-subtask-form novalidate>
@@ -666,19 +743,17 @@ function setupTasks() {
     if (button.dataset.action === 'edit') editTask(task);
     if (button.dataset.action === 'delete') {
       confirmDeletion('task', task.text, async () => {
-        await updateRecords('tasks', `/api/tasks/${id}`, 'DELETE', undefined, () => {
+        await deleteWorkspaceRecord('tasks', `/api/tasks/${id}`, 'Task', () => {
           if (editingTask === id) editTask(null);
           openTasks.delete(id);
           subtaskDrafts.delete(id);
         });
-        notice('Task deleted.');
       });
     }
     if (button.dataset.action === 'delete-subtask') {
       const subtask = task.subtasks.find((record) => record.id === Number(button.dataset.subtaskId));
       if (subtask) confirmDeletion('subtask', subtask.text, async () => {
-        await updateRecords('tasks', `/api/subtasks/${subtask.id}`, 'DELETE');
-        notice('Subtask deleted.');
+        await deleteWorkspaceRecord('tasks', `/api/subtasks/${subtask.id}`, 'Subtask');
       });
     }
   });
@@ -707,6 +782,10 @@ function setupTasks() {
 
 
 function focusComposer() {
+  if (currentView === 'calendar') {
+    openEvent();
+    return;
+  }
   if (currentView === 'home') {
     navigate('/journal?compose=1');
   } else {
@@ -745,9 +824,15 @@ async function showTask(hash) {
 function activate(url, focusHeading = false) {
   const view = routeViews[url.pathname];
   if (!view) return;
+  if (view === 'calendar' && !workspaceTools) {
+    history.replaceState({}, '', '/');
+    activate(new URL(location.href), focusHeading);
+    return;
+  }
   const changed = view !== currentView;
   currentView = view;
   const home = view === 'home';
+  const calendar = view === 'calendar';
   if (changed) {
     for (const name of Object.keys(routes)) {
       const nav = $(`nav-${name}`);
@@ -755,18 +840,19 @@ function activate(url, focusHeading = false) {
       else nav.removeAttribute('aria-current');
     }
     show('home-view', home);
-    show('work-view', !home);
+    show('calendar-view', calendar);
+    show('work-view', !home && !calendar);
     if (home) {
       updateGreeting();
       renderFocus();
       if (homeStale) void loadHome();
-    } else {
+    } else if (!calendar) {
       renderWorkView(view);
       updateClock();
     }
     window.scrollTo(0, 0);
     viewAnimation?.cancel();
-    const panel = $(home ? 'home-view' : 'work-view');
+    const panel = $(home ? 'home-view' : calendar ? 'calendar-view' : 'work-view');
     if (panel.animate && preferences.motion !== 'reduce' && !motionQuery.matches) {
       viewAnimation = panel.animate(
         [{ opacity: .74, transform: 'translateY(3px)' }, { opacity: 1, transform: 'translateY(0)' }],
@@ -782,12 +868,19 @@ function activate(url, focusHeading = false) {
     show('entry-prompt', Boolean(prompt));
     $('entry-content').setAttribute('aria-describedby', prompt ? 'entry-prompt entry-error' : 'entry-error');
   }
-  if (!home && url.searchParams.has('compose')) {
+  if (calendar) {
+    void loadCalendar(url.hash);
+    if (changed && focusHeading) $('calendar-title').focus({ preventScroll: true });
+  } else if (!home && url.searchParams.has('compose')) {
     focusComposer();
   } else if (view === 'tasks' && /^#task-\d+$/.test(url.hash)) {
     void showTask(url.hash);
+  } else if (view === 'journal' && /^#entry-\d+$/.test(url.hash)) {
+    void showSourceEntry(url.hash);
   } else if (home && url.hash === '#focus-title') {
-    $('focus-title').scrollIntoView({ block: 'center' });
+    const heading = $('focus-title');
+    if (focusHeading) heading.focus({ preventScroll: true });
+    heading.scrollIntoView({ block: 'center' });
   } else if (changed && focusHeading) {
     $(home ? 'home-greeting' : 'page-title').focus({ preventScroll: true });
   }
@@ -814,22 +907,28 @@ function setupNavigation() {
 }
 
 function setupShortcuts() {
-  const search = () => {
-    if (currentView !== 'journal') navigate('/journal', false);
-    $('search').focus();
-  };
   const save = () => {
-    if (currentView === 'home') return;
+    if (currentView !== 'journal' && currentView !== 'tasks') return;
     const task = currentView === 'tasks';
     const button = $(task ? 'save-task' : 'save-entry');
     if (!button.disabled) button.form.requestSubmit(button);
   };
-  const actions = { settings: openSettings, create: focusComposer, search, save };
+  const actions = {
+    settings: openSettings, create: focusComposer, search: toggleGlobalSearch, save,
+    planner: openWeeklyPlanner, event: createCalendarEvent, journalTask: openJournalTaskFromSelection,
+    focusToggle: toggleFocusTimer, focusReset: resetFocusTimer, undo: undoLatestDeletion,
+    theme: () => {
+      const picker = $('theme-picker');
+      picker.open = !picker.open;
+      picker.querySelector('summary').focus();
+    },
+  };
   document.addEventListener('keydown', (event) => {
     if (!currentView || event.defaultPrevented || event.isComposing || event.repeat || document.querySelector('dialog[open]')) return;
     const shortcut = shortcutCombo(event);
     if (!shortcut) return;
-    const action = Object.keys(shortcutActions).find((key) => preferences.shortcuts[key] === shortcut);
+    const action = availableShortcutActions().find((key) => preferences.shortcuts[key] === shortcut)
+      || (shortcut === searchShortcutAlias() ? 'search' : null);
     if (!action) return;
     event.preventDefault();
     if (Object.hasOwn(routes, action)) navigate(routes[action]);
@@ -837,6 +936,40 @@ function setupShortcuts() {
   });
 }
 
+async function setupWindowTitlebar() {
+  const controls = window.pywebview?.api;
+  if (!controls?.window_chrome) return;
+  window.removeEventListener('pywebviewready', setupWindowTitlebar);
+  const bar = $('window-titlebar');
+  const maximize = $('window-maximize');
+  const updateState = async (action = 'state') => {
+    try {
+      const state = await controls.window_chrome(action);
+      if (!state) return;
+      const label = state.maximized ? 'Restore' : 'Maximize';
+      maximize.title = label;
+      maximize.setAttribute('aria-label', label + ' window');
+      bar.dataset.maximized = String(state.maximized);
+      document.documentElement.classList.add('custom-title');
+      show('window-titlebar', true);
+    } catch {
+      if (action !== 'state') notice('The window control did not respond.', true);
+    }
+  };
+  for (const action of ['minimize', 'maximize', 'close']) {
+    $('window-' + action).addEventListener('click', () => void updateState(action));
+  }
+  $('window-drag').addEventListener('dblclick', () => void updateState('maximize'));
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(updateState, 100);
+  });
+  await updateState();
+}
+
+window.addEventListener('pywebviewready', setupWindowTitlebar, { once: true });
+if (window.pywebview?.api?.window_chrome) void setupWindowTitlebar();
 setupTheme();
 setupSettings();
 setupAccounts();
@@ -846,6 +979,7 @@ setupShortcuts();
 setupHome();
 setupJournal();
 setupTasks();
+setupWorkspaceTools();
 document.addEventListener('input', (event) => {
   if (event.target.dataset.error && event.target.hasAttribute('aria-invalid')) fieldMessage(event.target);
 });
@@ -859,6 +993,7 @@ setInterval(updateGreeting, 60000);
 async function startWorkspace() {
   try {
     if (!await loadAccount()) return;
+    await loadWorkspaceTools();
     void refresh('journal');
     void refresh('tasks');
     void loadHome();

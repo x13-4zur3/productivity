@@ -22,6 +22,6 @@ python -m mkdocs build --strict -f docs/mkdocs.yml
 1. Commit and push the root `.readthedocs.yaml` and the `docs/` directory to the GitHub repository.
 2. Sign in to Read the Docs Community with GitHub and add the `x13-4zur3/productivity` project.
 3. If you previously set a custom config path, open **Admin → Settings** and set **Build configuration file** to `.readthedocs.yaml`.
-4. In **Versions**, build **latest** and open the completed build's documentation. `latest` follows the default branch, so it can include documentation added after the `v1.0.0` tag.
+4. In **Versions**, build **latest** and open the completed build's documentation. `latest` follows the default branch, so it can include the 1.1.0 documentation before installers are published.
 
 Read the Docs detects the root `.readthedocs.yaml` by default. Keep the `docs/` prefixes in its `requirements` and `configuration` values. [Read the Docs configuration reference](https://docs.readthedocs.com/platform/stable/config-file/v2.html)

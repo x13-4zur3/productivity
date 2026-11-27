@@ -1,6 +1,6 @@
 # Build from source
 
-Use the [`v1.0.0` tag](https://github.com/x13-4zur3/productivity/tree/v1.0.0) for the desktop builds. Run the desktop commands from the project root.
+Use the 1.1.0 source archive or the `v-1.1.0` branch to try the upcoming Windows and Linux update. To rebuild the published desktop release, use the [`v1.0.0` tag](https://github.com/x13-4zur3/productivity/tree/v1.0.0). Run the desktop commands from the project root.
 
 ## Run the desktop app from source
 
@@ -36,7 +36,7 @@ Use the [`v1.0.0` tag](https://github.com/x13-4zur3/productivity/tree/v1.0.0) fo
 | --- | --- | --- |
 | Windows x64 | Python 3.10+, standard NSIS 3.11+ | `Productivity-Setup-x64.exe` |
 | macOS Apple silicon and Intel | Python 3.12+, Go 1.24+ | `Productivity-macOS.dmg` |
-| Debian and portable Linux | Python 3.10+, `dpkg-deb` | `productivity_1.0.0_all.deb`, `Productivity-Linux.tar.gz` |
+| Debian and portable Linux | Python 3.10+, `dpkg-deb` | `productivity_1.1.0_all.deb`, `Productivity-Linux.tar.gz` on the 1.1.0 branch |
 
 === "Windows"
 
@@ -60,13 +60,13 @@ Use the [`v1.0.0` tag](https://github.com/x13-4zur3/productivity/tree/v1.0.0) fo
     python3 packaging/build_unix.py linux
     ```
 
-For a hosted-account build, set the public HTTPS address in `account-service.json` before building. See [Host the account service](hosting.md) and the [release checklist](https://github.com/x13-4zur3/productivity/blob/v1.0.0/RELEASE.md).
+For a hosted-account build, set the public HTTPS address in `account-service.json` before building. See [Host the account service](hosting.md) and the [current GitHub releases](https://github.com/x13-4zur3/productivity/releases).
 
 ## Build the Android APK
 
 To build the current `main` branch, open [Build Productivity Android APK](https://github.com/x13-4zur3/productivity/actions/workflows/build-android.yml) in GitHub Actions and select **Run workflow**. Download the debug APK from **Artifacts** when the run succeeds.
 
-To build v1.0.0 locally, check out the [`android-v1.0.0` tag](https://github.com/x13-4zur3/productivity/tree/android-v1.0.0). Set up Java 21, Python 3.13, Android SDK Platform 36, and Build Tools 35.0.0. Run the Gradle wrapper from the `android/` directory.
+Use the current source archive for an Android 1.1.0 test build. To rebuild the published APK, check out the [`android-v1.0.0` tag](https://github.com/x13-4zur3/productivity/tree/android-v1.0.0). Set up Java 21, Python 3.13, Android SDK Platform 36, and Build Tools 35.0.0. Run the Gradle wrapper from the `android/` directory.
 
 === "Windows"
 

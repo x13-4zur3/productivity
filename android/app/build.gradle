@@ -11,8 +11,8 @@ android {
         applicationId 'io.github.x13_4zur3.productivity'
         minSdk 24
         targetSdk 36
-        versionCode 1
-        versionName '1.0.0'
+        versionCode 3
+        versionName '1.1.0'
         ndk {
             abiFilters 'arm64-v8a', 'x86_64'
         }
@@ -26,7 +26,7 @@ android {
 
 def sharedDirectory = layout.buildDirectory.dir('generated/productivity/python')
 def sharedSource = tasks.register('syncProductivitySource', Sync) {
-    from(rootProject.layout.projectDirectory.dir('shared')) {
+    from(rootProject.projectDir.parentFile) {
         include 'app.py', 'desktop_accounts.py', 'desktop_server.py', 'account-service.json', 'static/**'
     }
     into(sharedDirectory)

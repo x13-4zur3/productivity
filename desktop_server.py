@@ -148,9 +148,16 @@ def preferred_port(directory):
     return 48765
 
 
+def issue_window_url(server):
+    with server.ticket_lock:
+        server.ticket = token_urlsafe(32).encode('ascii')
+        return url_for(server.server_port) + '/_desktop/' + server.ticket.decode('ascii')
+
+
 @contextmanager
-def desktop_session(directory):
-    port = preferred_port(directory)
+def desktop_session(directory, *, port=None):
+    if port is None:
+        port = preferred_port(directory)
     try:
         listener = ThreadingHTTPServer(('127.0.0.1', port), DesktopHandler)
     except OSError:
@@ -158,13 +165,12 @@ def desktop_session(directory):
     with listener as server:
         server.store = Store(directory / 'productivity.sqlite3')
         server.accounts = DesktopAccounts(directory)
-        server.ticket = token_urlsafe(32).encode('ascii')
         server.ticket_lock = Lock()
         server.session_cookie = token_urlsafe(32).encode('ascii')
         server.control_token = token_urlsafe(32).encode('ascii')
         server.stop_requested = Event()
         server.activate_requested = Event()
-        url = url_for(server.server_port) + '/_desktop/' + server.ticket.decode('ascii')
+        url = issue_window_url(server)
         worker = Thread(target=server.serve_forever)
         worker.start()
         try:

@@ -10,12 +10,13 @@ hide:
     <h1 id="intro-heading">Productivity<br><span>documentation</span></h1>
     <p>Learn to install Productivity, keep a journal, plan tasks, and run focus sessions.</p>
     <a class="docs-primary" href="install/">Get started</a>
+    <p><a href="changes/#productivity-110">What’s new in 1.1.0</a></p>
   </div>
 
 <aside class="docs-release" aria-labelledby="release-heading" markdown="block">
 
 <h2 id="release-heading">Downloads</h2>
-<p class="docs-version">v1.0.0</p>
+<p class="docs-version">Published release · v1.0.0</p>
 
 === "Windows"
 

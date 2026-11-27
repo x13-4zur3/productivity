@@ -10,7 +10,7 @@ from app import Handler, ROOT
 from desktop_accounts import DATA_PATH, account_origin
 
 COOKIE = '__Host-ProductivityWeb'
-PAGES = {'/', '/journal', '/todos'}
+PAGES = {'/', '/journal', '/todos', '/calendar'}
 ACTIONS = {
     '/api/account/login': '/api/auth/login',
     '/api/account/register': '/api/auth/register',

@@ -12,9 +12,8 @@ ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / 'dist'
 SOURCE = (
     '.gitignore', 'LICENSE', 'README.md', 'SIGNING.md', 'app.py', 'desktop_server.py', 'import_browser_data.py',
-    'ACCOUNTS.md', 'RELEASE.md', 'render.yaml', 'account-service.json', 'account_server.py', 'account_schema.sql',
+    'ACCOUNTS.md', 'CHANGELOG.md', 'RELEASE.md', 'web_pwa.py', 'render.yaml', 'account-service.json', 'account_server.py', 'account_schema.sql',
     'requirements-server.txt', 'desktop_accounts.py',
-    'static/index.html', 'static/app.js', 'static/accounts.js', 'static/settings.js', 'static/style.css',
     'packaging/build_bundle.py', 'packaging/build_unix.py', 'packaging/desktop_unix.py',
     'packaging/linux/org.productivity.Productivity.desktop', 'packaging/linux/productivity',
     'packaging/macos/Productivity', 'packaging/macos/launcher.c', 'packaging/macos/sign-and-notarize.sh',
@@ -24,6 +23,7 @@ SOURCE = (
     'packaging/windows/windows_launcher.py', 'packaging/windows/desktop-dependencies.json',
     'packaging/windows/productivity.ico',
 )
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -35,6 +35,8 @@ def main():
     args = parser.parse_args()
     deb_name = f'productivity_{VERSION}_all.deb'
     files = {name: ROOT / name for name in SOURCE}
+    files.update({path.relative_to(ROOT).as_posix(): path
+                  for path in sorted((ROOT / 'static').rglob('*')) if path.is_file()})
     files.update({
         'dist/Productivity-macOS.dmg': args.macos_dmg,
         'dist/Productivity-Setup-x64.exe': args.windows_setup,
@@ -59,6 +61,7 @@ def main():
                 bundle.write(path, f'Productivity/{name}', compress_type=compression)
         staged.replace(args.output)
     print(f'ZIP written to {args.output.resolve()}')
+
 
 if __name__ == '__main__':
     main()
