@@ -7,7 +7,6 @@ from http.server import BaseHTTPRequestHandler
 import json
 from pathlib import Path
 import re
-from secrets import token_urlsafe
 import sqlite3
 from urllib.parse import parse_qs, urlsplit
 
@@ -16,12 +15,9 @@ ROOT = Path(__file__).resolve().parent
 MOODS = ('happy', 'neutral', 'sad', 'loved')
 PRIORITIES = ('low', 'medium', 'high')
 CADENCES = ('none', 'daily', 'weekly', 'monthly')
-THEMES = ('light', 'dark', 'terminal', 'contrast', 'pink')
-UNDO_SECONDS = 30
-DELETABLE = ('entries', 'tasks', 'subtasks', 'calendar_events')
-LEGACY_SHORTCUT_ACTIONS = {'home', 'journal', 'tasks', 'settings', 'create', 'search', 'save'}
-SHORTCUT_ACTIONS = LEGACY_SHORTCUT_ACTIONS | {'calendar', 'planner', 'event', 'journalTask', 'focusToggle',
-                                             'focusReset', 'undo', 'theme'}
+THEMES = ('light', 'dark', 'terminal', 'contrast')
+FOCUS_MINUTES = (5, 15, 25)
+SHORTCUT_ACTIONS = {'home', 'journal', 'tasks', 'settings', 'create', 'search', 'save'}
 SHORTCUT = re.compile(r'(?:Control\+)?(?:Alt\+)?(?:Shift\+)?(?:Meta\+)?(?:Key[A-Z]|Digit[0-9]|Enter|Comma)')
 SCHEMA = '''
 CREATE TABLE IF NOT EXISTS entries (
@@ -38,14 +34,6 @@ CREATE TABLE IF NOT EXISTS subtasks (
     text TEXT NOT NULL, completed INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS preferences (name TEXT PRIMARY KEY, value TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS calendar_events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, start_day TEXT NOT NULL, end_day TEXT NOT NULL,
-    start_time TEXT, end_time TEXT, notes TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS pending_deletions (
-    kind TEXT NOT NULL CHECK (kind IN ('entries', 'tasks', 'subtasks', 'calendar_events')),
-    record_id INTEGER NOT NULL, token TEXT NOT NULL UNIQUE, expires TEXT NOT NULL, PRIMARY KEY (kind, record_id)
-);
 '''
 
 
@@ -55,10 +43,6 @@ class InputError(ValueError):
 
 class MissingRecord(LookupError):
     pass
-
-
-def visible_rows(table):
-    return f"id NOT IN (SELECT record_id FROM pending_deletions WHERE kind = '{table}')"
 
 
 def timestamp():
@@ -109,28 +93,6 @@ def next_due(due, cadence, month_day):
     return date(year, month, min(month_day or due.day, calendar.monthrange(year, month)[1]))
 
 
-def event_fields(data):
-    title = required_text(data.get('title'), 'Event title', 180)
-    try:
-        start_day = date.fromisoformat(data.get('start_day')).isoformat()
-        end_day = date.fromisoformat(data.get('end_day') or start_day).isoformat()
-    except (TypeError, ValueError):
-        raise InputError('Enter a valid start and end date.') from None
-    start_time = data.get('start_time') or None
-    end_time = data.get('end_time') or None
-    for value in (start_time, end_time):
-        if value is not None and (not isinstance(value, str) or not re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d', value)):
-            raise InputError('Choose a valid time.')
-    if (start_time is None) != (end_time is None):
-        raise InputError('Choose both a start and an end time, or leave both blank for an all-day event.')
-    if end_day < start_day or (start_day == end_day and start_time is not None and end_time <= start_time):
-        raise InputError('The event must end after it starts.')
-    notes = data.get('notes', '')
-    if not isinstance(notes, str) or len(notes) > 3000 or '\x00' in notes:
-        raise InputError('Use up to 3,000 characters for event notes.')
-    return title, start_day, end_day, start_time, end_time, notes.strip()
-
-
 class Store:
     preference_key = 'name'
 
@@ -139,9 +101,6 @@ class Store:
         self.filename.parent.mkdir(parents=True, exist_ok=True)
         with self.connection() as db:
             db.executescript(SCHEMA)
-        with self.connection(write=True) as db:
-            if not any(row['name'] == 'source_entry_id' for row in db.execute('PRAGMA table_info(tasks)')):
-                db.execute('ALTER TABLE tasks ADD COLUMN source_entry_id INTEGER REFERENCES entries(id) ON DELETE SET NULL')
 
     @contextmanager
     def connection(self, write=False):
@@ -153,11 +112,9 @@ class Store:
 
     @staticmethod
     def record(db, table, record_id):
-        record = db.execute(f'SELECT * FROM {table} WHERE id = ? AND {visible_rows(table)}', (record_id,)).fetchone()
+        record = db.execute(f'SELECT * FROM {table} WHERE id = ?', (record_id,)).fetchone()
         if record is None:
             raise MissingRecord
-        if table == 'subtasks':
-            Store.record(db, 'tasks', record['task_id'])
         return record
 
     def journal(self, query):
@@ -166,8 +123,7 @@ class Store:
         tags = set(query.get('tag', []))
         with self.connection() as db:
             entries = [dict(row) for row in db.execute(
-                f'SELECT id, content, mood, tags, created_at FROM entries WHERE {visible_rows("entries")} '
-                'ORDER BY created_at DESC, id DESC')]
+                'SELECT id, content, mood, tags, created_at FROM entries ORDER BY created_at DESC, id DESC')]
         for entry in entries:
             entry['tags'] = json.loads(entry['tags'])
         current_month = date.today().replace(day=1)
@@ -202,16 +158,12 @@ class Store:
         today = date.today().isoformat()
         with self.connection() as db:
             tasks = {row['id']: dict(row) for row in db.execute(
-                'SELECT id, text, priority, due_date, cadence, month_day, completed, next_task_id, created_at, '
-                "CASE WHEN source_entry_id IN (SELECT record_id FROM pending_deletions WHERE kind = 'entries') "
-                'THEN NULL ELSE source_entry_id END AS source_entry_id '
-                f'FROM tasks WHERE {visible_rows("tasks")} ORDER BY created_at DESC, id DESC')}
+                'SELECT id, text, priority, due_date, cadence, month_day, completed, next_task_id, created_at '
+                'FROM tasks ORDER BY created_at DESC, id DESC')}
             for task in tasks.values():
                 task['subtasks'] = []
                 task['completed'] = bool(task['completed'])
-            for row in db.execute(f'SELECT id, task_id, text, completed FROM subtasks WHERE {visible_rows("subtasks")} ORDER BY id'):
-                if row['task_id'] not in tasks:
-                    continue
+            for row in db.execute('SELECT id, task_id, text, completed FROM subtasks ORDER BY id'):
                 tasks[row['task_id']]['subtasks'].append({
                     'id': row['id'], 'text': row['text'], 'completed': bool(row['completed']),
                 })
@@ -232,14 +184,9 @@ class Store:
     def add_task(self, data):
         text, priority, due, cadence = task_fields(data)
         anchor = date.fromisoformat(due).day if cadence == 'monthly' else None
-        source = data.get('source_entry_id')
         with self.connection(write=True) as db:
-            if source is not None:
-                if type(source) is not int or not 1 <= source <= 2**63 - 1:
-                    raise InputError('Choose a valid journal entry.')
-                self.record(db, 'entries', source)
-            db.execute('''INSERT INTO tasks (text, priority, due_date, cadence, month_day, created_at, source_entry_id)
-                          VALUES (?, ?, ?, ?, ?, ?, ?)''', (text, priority, due, cadence, anchor, timestamp(), source))
+            db.execute('''INSERT INTO tasks (text, priority, due_date, cadence, month_day, created_at)
+                          VALUES (?, ?, ?, ?, ?, ?)''', (text, priority, due, cadence, anchor, timestamp()))
 
     def update_task(self, task_id, data):
         with self.connection(write=True) as db:
@@ -253,12 +200,6 @@ class Store:
                     anchor = (task['month_day'] if due == task['due_date'] else None) or date.fromisoformat(due).day
                 db.execute('''UPDATE tasks SET text = ?, priority = ?, due_date = ?, cadence = ?, month_day = ?
                               WHERE id = ?''', (text, priority, due, cadence, anchor, task_id))
-            elif 'due_date' in data:
-                _, _, due, cadence = task_fields({**dict(task), 'due_date': data['due_date']})
-                anchor = None
-                if cadence == 'monthly':
-                    anchor = (task['month_day'] if due == task['due_date'] else None) or date.fromisoformat(due).day
-                db.execute('UPDATE tasks SET due_date = ?, month_day = ? WHERE id = ?', (due, anchor, task_id))
             else:
                 priority = choice(data.get('priority'), PRIORITIES, 'priority')
                 db.execute('UPDATE tasks SET priority = ? WHERE id = ?', (priority, task_id))
@@ -277,11 +218,10 @@ class Store:
             except (ValueError, OverflowError):
                 raise InputError('Change the due date before completing this repeating task.') from None
             successor = self.inserted_id(db, '''INSERT INTO tasks
-                (text, priority, due_date, cadence, month_day, created_at, source_entry_id) VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                (text, priority, due_date, cadence, month_day, created_at) VALUES (?, ?, ?, ?, ?, ?)''',
                                          (task['text'], task['priority'], due.isoformat(), task['cadence'],
-                                          task['month_day'], timestamp(), task['source_entry_id']))
-            db.execute('INSERT INTO subtasks (task_id, text) SELECT ?, text FROM subtasks '
-                       f'WHERE task_id = ? AND {visible_rows("subtasks")} ORDER BY id',
+                                          task['month_day'], timestamp()))
+            db.execute('INSERT INTO subtasks (task_id, text) SELECT ?, text FROM subtasks WHERE task_id = ? ORDER BY id',
                        (successor, task['id']))
         db.execute('UPDATE tasks SET completed = ?, next_task_id = ? WHERE id = ?',
                    (int(completed), successor, task['id']))
@@ -300,71 +240,12 @@ class Store:
 
     def delete(self, table, record_id):
         with self.connection(write=True) as db:
-            self.record(db, table, record_id)
-            db.execute(f'DELETE FROM {table} WHERE id = ?', (record_id,))
+            if not db.execute(f'DELETE FROM {table} WHERE id = ?', (record_id,)).rowcount:
+                raise MissingRecord
 
-    def defer_delete(self, table, record_id):
-        with self.connection(write=True) as db:
-            self.record(db, table, record_id)
-            token = token_urlsafe(24)
-            expires = (datetime.now(timezone.utc) + timedelta(seconds=UNDO_SECONDS)).isoformat(timespec='microseconds')
-            db.execute('INSERT INTO pending_deletions (kind, record_id, token, expires) VALUES (?, ?, ?, ?)',
-                       (table, record_id, token, expires))
-        return {'token': token, 'seconds': UNDO_SECONDS}
-
-    @staticmethod
-    def commit_deletion(db, pending):
-        kind = pending['kind']
-        if kind in DELETABLE:
-            db.execute(f'DELETE FROM {kind} WHERE id = ?', (pending['record_id'],))
-        db.execute('DELETE FROM pending_deletions WHERE token = ?', (pending['token'],))
-
-    def finish_delete(self, token, undo):
-        with self.connection(write=True) as db:
-            pending = db.execute('SELECT * FROM pending_deletions WHERE token = ?', (token,)).fetchone()
-            if pending is None:
-                return False
-            kind = pending['kind']
-            if (undo and pending['expires'] > timestamp() and kind in DELETABLE
-                    and db.execute(f'SELECT id FROM {kind} WHERE id = ?', (pending['record_id'],)).fetchone()):
-                db.execute('DELETE FROM pending_deletions WHERE token = ?', (token,))
-                return True
-            self.commit_deletion(db, pending)
-            return False
-
-    def clear_expired_deletions(self):
-        cutoff = timestamp()
+    def preferences(self, _query):
         with self.connection() as db:
-            expired = db.execute('SELECT 1 FROM pending_deletions WHERE expires <= ? LIMIT 1', (cutoff,)).fetchone()
-        if expired:
-            with self.connection(write=True) as db:
-                for pending in db.execute('SELECT * FROM pending_deletions WHERE expires <= ?', (cutoff,)).fetchall():
-                    self.commit_deletion(db, pending)
-
-    def calendar(self, _query):
-        with self.connection() as db:
-            return {'events': [dict(row) for row in db.execute(
-                'SELECT id, title, start_day, end_day, start_time, end_time, notes '
-                f'FROM calendar_events WHERE {visible_rows("calendar_events")} ORDER BY start_day, start_time, id')]}
-
-    def save_event(self, data, event_id=None):
-        fields = event_fields(data)
-        with self.connection(write=True) as db:
-            if event_id is None:
-                db.execute('INSERT INTO calendar_events (title, start_day, end_day, start_time, end_time, notes) '
-                           'VALUES (?, ?, ?, ?, ?, ?)', fields)
-            else:
-                self.record(db, 'calendar_events', event_id)
-                db.execute('UPDATE calendar_events SET title = ?, start_day = ?, end_day = ?, start_time = ?, '
-                           'end_time = ?, notes = ? WHERE id = ?', (*fields, event_id))
-
-    def preferences(self, query):
-        with self.connection() as db:
-            saved = {row['name']: json.loads(row['value']) for row in db.execute('SELECT name, value FROM preferences')}
-        if 'shortcuts' in saved and query.get('shortcuts') != ['expanded']:
-            saved['shortcuts'] = {action: value for action, value in saved['shortcuts'].items()
-                                  if action in LEGACY_SHORTCUT_ACTIONS}
-        return saved
+            return {row['name']: json.loads(row['value']) for row in db.execute('SELECT name, value FROM preferences')}
 
     def home(self, _query):
         today = date.today()
@@ -401,7 +282,7 @@ class Store:
             choice(data['motion'], ('system', 'reduce'), 'motion setting')
         if 'shortcuts' in data:
             shortcuts = data['shortcuts']
-            if not isinstance(shortcuts, dict) or shortcuts.keys() not in (LEGACY_SHORTCUT_ACTIONS, SHORTCUT_ACTIONS):
+            if not isinstance(shortcuts, dict) or shortcuts.keys() != SHORTCUT_ACTIONS:
                 raise InputError('Choose a valid keyboard shortcut.')
             assigned = set()
             for shortcut in shortcuts.values():
@@ -417,18 +298,11 @@ class Store:
             if not isinstance(focus, dict) or focus.keys() != {'minutes', 'remaining', 'endsAt'}:
                 raise InputError('Choose a valid focus timer.')
             minutes, remaining, ends_at = focus['minutes'], focus['remaining'], focus['endsAt']
-            if (type(minutes) is not int or not 1 <= minutes <= 180
+            if (type(minutes) is not int or minutes not in FOCUS_MINUTES
                     or type(remaining) is not int or not 0 <= remaining <= minutes * 60000
                     or ends_at is not None and (type(ends_at) is not int or not 0 < ends_at <= 8640000000000000)):
                 raise InputError('Choose a valid focus timer.')
         with self.connection(write=True) as db:
-            if 'shortcuts' in data and shortcuts.keys() == LEGACY_SHORTCUT_ACTIONS:
-                row = db.execute("SELECT value FROM preferences WHERE name = 'shortcuts'").fetchone()
-                if row:
-                    saved = json.loads(row['value'])
-                    retained = {action: value if value not in assigned else None for action, value in saved.items()
-                                if action in SHORTCUT_ACTIONS - LEGACY_SHORTCUT_ACTIONS}
-                    data['shortcuts'] = {**retained, **shortcuts}
             db.executemany(f'INSERT INTO preferences (name, value) VALUES (?, ?) '
                            f'ON CONFLICT ({self.preference_key}) DO UPDATE SET value = excluded.value',
                            ((key, json.dumps(value)) for key, value in data.items()))
@@ -437,12 +311,9 @@ class Store:
 class Handler(BaseHTTPRequestHandler):
     assets = {
         '/': ('index.html', 'text/html'), '/journal': ('index.html', 'text/html'), '/todos': ('index.html', 'text/html'),
-        '/calendar': ('index.html', 'text/html'),
         '/style.css': ('style.css', 'text/css'), '/app.js': ('app.js', 'text/javascript'),
         '/settings.js': ('settings.js', 'text/javascript'),
         '/accounts.js': ('accounts.js', 'text/javascript'),
-        '/workspace.js': ('workspace.js', 'text/javascript'),
-        '/fonts/InstrumentSans-Regular.ttf': ('fonts/InstrumentSans-Regular.ttf', 'font/ttf'),
     }
 
     @property
@@ -482,13 +353,8 @@ class Handler(BaseHTTPRequestHandler):
             file, mime = self.assets[url.path]
             self.send_bytes(200, (ROOT / 'static' / file).read_bytes(), mime)
             return
-        if url.path == '/api/features':
-            self.store.clear_expired_deletions()
-            self.send_json(200, {'workspaceTools': True, 'expandedShortcuts': True})
-            return
         views = {'/api/journal': self.store.journal, '/api/tasks': self.store.tasks,
-                 '/api/preferences': self.store.preferences, '/api/home': self.store.home,
-                 '/api/calendar': self.store.calendar}
+                 '/api/preferences': self.store.preferences, '/api/home': self.store.home}
         if url.path in views:
             try:
                 query = parse_qs(url.query, max_num_fields=100)
@@ -501,33 +367,19 @@ class Handler(BaseHTTPRequestHandler):
     def mutate(self):
         store = self.store
         routes = {
-            'POST': {r'/api/entries': store.save_entry, r'/api/tasks': store.add_task, r'/api/calendar': store.save_event,
+            'POST': {r'/api/entries': store.save_entry, r'/api/tasks': store.add_task,
                      r'/api/tasks/(\d+)/subtasks': store.add_subtask},
             'PATCH': {r'/api/preferences': store.save_preferences,
                       r'/api/entries/(\d+)': lambda key, data: store.save_entry(data, key),
-                      r'/api/tasks/(\d+)': store.update_task, r'/api/subtasks/(\d+)': store.update_subtask,
-                      r'/api/calendar/(\d+)': lambda key, data: store.save_event(data, key)},
+                      r'/api/tasks/(\d+)': store.update_task, r'/api/subtasks/(\d+)': store.update_subtask},
         }
         try:
-            url = urlsplit(self.path)
-            path = url.path
-            deletion = re.fullmatch(r'/api/deletions/([\w-]{32})/(undo|finalize)', path, re.ASCII)
-            if self.command == 'POST' and deletion:
-                undo = deletion[2] == 'undo'
-                restored = store.finish_delete(deletion[1], undo)
-                self.send_json(410 if undo and not restored else 200,
-                               {'error': 'The undo period has ended.'} if undo and not restored else {'ok': True})
-                return
+            path = urlsplit(self.path).path
             if self.command == 'DELETE':
-                match = re.fullmatch(r'/api/(entries|tasks|subtasks|calendar)/(\d+)', path)
+                match = re.fullmatch(r'/api/(entries|tasks|subtasks)/(\d+)', path)
                 if match is None:
                     raise MissingRecord
-                table = 'calendar_events' if match[1] == 'calendar' else match[1]
-                key = self.record_id(match[2])
-                if url.query == 'undo=1':
-                    self.send_json(200, store.defer_delete(table, key))
-                    return
-                store.delete(table, key)
+                store.delete(match[1], self.record_id(match[2]))
             else:
                 for pattern, action in routes[self.command].items():
                     if match := re.fullmatch(pattern, path):

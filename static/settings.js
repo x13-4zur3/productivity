@@ -2,46 +2,23 @@
 
 const isMac = /Mac/.test(navigator.platform);
 const primaryModifier = isMac ? 'Meta' : 'Control';
-const workspaceModifier = isMac ? 'Alt+Meta+' : 'Control+Alt+';
 const defaultShortcuts = {
-  home: workspaceModifier + 'Digit1',
-  journal: workspaceModifier + 'Digit2',
-  tasks: workspaceModifier + 'Digit3',
+  home: isMac ? 'Alt+Meta+Digit1' : 'Control+Alt+Digit1',
+  journal: isMac ? 'Alt+Meta+Digit2' : 'Control+Alt+Digit2',
+  tasks: isMac ? 'Alt+Meta+Digit3' : 'Control+Alt+Digit3',
   settings: primaryModifier + '+Comma',
   create: isMac ? 'Shift+Meta+KeyN' : 'Control+Shift+KeyN',
   search: primaryModifier + '+KeyF',
   save: primaryModifier + '+Enter',
-  calendar: workspaceModifier + 'Digit4',
-  planner: workspaceModifier + 'KeyP',
-  event: workspaceModifier + 'KeyE',
-  journalTask: workspaceModifier + 'KeyJ',
-  focusToggle: workspaceModifier + 'KeyF',
-  focusReset: workspaceModifier + 'KeyR',
-  undo: workspaceModifier + 'KeyZ',
-  theme: workspaceModifier + 'KeyT',
 };
-const legacyShortcutActions = ['home', 'journal', 'tasks', 'settings', 'create', 'search', 'save'];
 const shortcutActions = {
   home: 'Go to Home',
   journal: 'Go to Journal',
   tasks: 'Go to To-do list',
   settings: 'Open Settings',
-  create: 'Create an item in this view',
-  search: 'Toggle Search',
+  create: 'Start an entry or task',
+  search: 'Search journal entries',
   save: 'Save the current entry or task',
-  calendar: 'Go to Calendar',
-  planner: 'Open Weekly planner',
-  event: 'Add a calendar event',
-  journalTask: 'Create task from journal text',
-  focusToggle: 'Start or pause focus timer',
-  focusReset: 'Reset focus timer',
-  undo: 'Undo latest deletion',
-  theme: 'Open theme picker',
-};
-const shortcutGroups = {
-  Navigation: ['home', 'journal', 'tasks', 'calendar', 'planner', 'search'],
-  Editing: ['create', 'event', 'journalTask', 'save', 'undo'],
-  'Focus and settings': ['focusToggle', 'focusReset', 'settings', 'theme'],
 };
 const preferences = {
   name: '', theme: 'light', startPage: 'home', motion: 'system', shortcuts: defaultShortcuts,
@@ -69,42 +46,14 @@ function shortcutParts(shortcut, display = true) {
   });
 }
 
-function availableShortcutActions() {
-  return expandedShortcuts ? Object.keys(shortcutActions) : legacyShortcutActions;
-}
-
-function completeShortcuts(saved) {
-  const actions = availableShortcutActions();
-  const assigned = new Set(actions.map((action) => saved[action]).filter(Boolean));
-  return Object.fromEntries(actions.map((action) => {
-    if (Object.hasOwn(saved, action)) return [action, saved[action]];
-    const fallback = defaultShortcuts[action];
-    if (assigned.has(fallback)) return [action, null];
-    assigned.add(fallback);
-    return [action, fallback];
-  }));
-}
-
-function searchShortcutAlias() {
-  const shortcut = defaultShortcuts.search;
-  return preferences.shortcuts.search && !Object.values(preferences.shortcuts).includes(shortcut) ? shortcut : null;
-}
-
 function applyPreferences(saved) {
   Object.assign(preferences, saved);
-  preferences.shortcuts = completeShortcuts(preferences.shortcuts);
   applyTheme(preferences.theme);
   document.documentElement.dataset.motion = preferences.motion;
   const save = preferences.shortcuts.save;
-  const controls = { save: ['save-entry', 'save-task'], search: ['open-global-search'], calendar: ['nav-calendar'],
-    planner: ['open-planner'], event: ['new-event'], focusToggle: ['toggle-focus'], focusReset: ['reset-focus'] };
-  for (const [action, ids] of Object.entries(controls)) {
-    const binding = [preferences.shortcuts[action], action === 'search' && searchShortcutAlias()]
-      .filter(Boolean).map((shortcut) => shortcutParts(shortcut, false).join('+')).join(' ');
-    for (const id of ids) {
-      if (binding) $(id).setAttribute('aria-keyshortcuts', binding);
-      else $(id).removeAttribute('aria-keyshortcuts');
-    }
+  for (const button of [$('save-entry'), $('save-task')]) {
+    if (save) button.setAttribute('aria-keyshortcuts', shortcutParts(save, false).join('+'));
+    else button.removeAttribute('aria-keyshortcuts');
   }
   const hint = save ? shortcutParts(save).join(' + ') : '';
   text('save-shortcut', hint);
@@ -156,8 +105,8 @@ function openSettings() {
   $('settings-theme').value = preferences.theme;
   $('start-page').value = preferences.startPage;
   $('motion-setting').value = preferences.motion;
-  draftShortcuts = completeShortcuts(preferences.shortcuts);
-  renderShortcutList();
+  draftShortcuts = { ...preferences.shortcuts };
+  Object.keys(shortcutActions).forEach(renderShortcut);
   inlineMessage('shortcut-error');
   inlineMessage('settings-error');
   chooseSettingsTab('general');
@@ -165,23 +114,16 @@ function openSettings() {
   $('general-tab').focus();
 }
 
-function renderShortcutList() {
-  const available = availableShortcutActions();
-  $('shortcut-list').innerHTML = Object.entries(shortcutGroups).map(([group, actions]) => {
-    const rows = actions.filter((action) => available.includes(action)).map((action) => `
-    <div class="shortcut-row">
-      <span>${shortcutActions[action]}</span>
-      <button type="button" class="shortcut-key" data-record="${action}" aria-describedby="shortcut-help"></button>
-      <button type="button" class="text-button shortcut-clear" data-clear="${action}" aria-label="Clear shortcut for ${shortcutActions[action]}">Clear</button>
-    </div>`);
-    return `<section class="shortcut-group"><h3>${group}</h3>${rows.join('')}</section>`;
-  }).join('');
-  available.forEach(renderShortcut);
-}
-
 function setupSettings() {
   const dialog = $('settings-dialog');
   const list = $('shortcut-list');
+  list.innerHTML = Object.entries(shortcutActions).map(([action, label]) => `
+    <div class="shortcut-row">
+      <span>${label}</span>
+      <button type="button" class="shortcut-key" data-record="${action}" aria-describedby="shortcut-help"></button>
+      <button type="button" class="text-button shortcut-clear" data-clear="${action}" aria-label="Clear shortcut for ${label}">Clear</button>
+    </div>`).join('');
+
   $('open-settings').addEventListener('click', openSettings);
   const close = () => { if (!$('save-settings').disabled) dialog.close(); };
   $('close-settings').addEventListener('click', close);
@@ -248,8 +190,8 @@ function setupSettings() {
   });
   $('reset-shortcuts').addEventListener('click', () => {
     stopRecording();
-    draftShortcuts = completeShortcuts({});
-    availableShortcutActions().forEach(renderShortcut);
+    draftShortcuts = { ...defaultShortcuts };
+    Object.keys(shortcutActions).forEach(renderShortcut);
     inlineMessage('shortcut-error');
   });
 
@@ -284,8 +226,9 @@ function confirmDeletion(kind, excerpt, action) {
   if (dialog.open) return;
   deleteAction = action;
   text('delete-title', `Delete this ${kind}?`);
-  const description = kind === 'task' ? 'This removes the task and its subtasks.' : `This removes the ${kind}.`;
-  text('delete-description', workspaceTools ? `${description} You’ll have 30 seconds to undo.` : `${description} This is permanent.`);
+  text('delete-description', kind === 'task'
+    ? 'This removes the task and its subtasks. You can’t undo this.'
+    : `This removes the ${kind} permanently.`);
   const preview = excerpt.length > 180 ? excerpt.slice(0, 177).trimEnd() + '…' : excerpt;
   text('delete-preview', preview);
   show('delete-preview', Boolean(preview));
@@ -310,9 +253,7 @@ function setupDeletion() {
     try {
       await deleteAction();
       dialog.close();
-      if (!document.activeElement || document.activeElement === document.body) {
-        $(currentView === 'calendar' ? 'calendar-title' : 'list-heading').focus();
-      }
+      if (!document.activeElement || document.activeElement === document.body) $('list-heading').focus();
     } catch (error) {
       inlineMessage('delete-error', error.message);
       confirm.focus();

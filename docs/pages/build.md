@@ -1,6 +1,6 @@
 # Build from source
 
-Use the [`v-1.2.0` branch](https://github.com/x13-4zur3/productivity/tree/v-1.2.0) to try the upcoming Windows and Linux update. To rebuild the published desktop release, use the [`v1.0.0` tag](https://github.com/x13-4zur3/productivity/tree/v1.0.0). Run the desktop commands from the project root.
+Use the [`v1.0.0` tag](https://github.com/x13-4zur3/productivity/tree/v1.0.0) for the desktop builds. Run the desktop commands from the project root.
 
 ## Run the desktop app from source
 
@@ -36,7 +36,7 @@ Use the [`v-1.2.0` branch](https://github.com/x13-4zur3/productivity/tree/v-1.2.
 | --- | --- | --- |
 | Windows x64 | Python 3.10+, standard NSIS 3.11+ | `Productivity-Setup-x64.exe` |
 | macOS Apple silicon and Intel | Python 3.12+, Go 1.24+ | `Productivity-macOS.dmg` |
-| Debian and portable Linux | Python 3.10+, `dpkg-deb` | `productivity_1.2.0_all.deb`, `Productivity-Linux.tar.gz` on the 1.2.0 branch |
+| Debian and portable Linux | Python 3.10+, `dpkg-deb` | `productivity_1.0.0_all.deb`, `Productivity-Linux.tar.gz` |
 
 === "Windows"
 

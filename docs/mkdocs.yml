@@ -1,6 +1,5 @@
 site_name: Productivity Docs
-site_description: Install Productivity and learn to use its journal, tasks, calendar, focus timer, and accounts.
-site_url: !ENV [READTHEDOCS_CANONICAL_URL, 'https://productivity.readthedocs.org/en/latest/']
+site_description: Install Productivity and learn to use its journal, tasks, focus timer, and accounts.
 repo_name: x13-4zur3/productivity
 repo_url: https://github.com/x13-4zur3/productivity
 edit_uri: edit/main/docs/pages/
@@ -21,21 +20,13 @@ theme:
     - content.tabs.link
     - navigation.sections
     - navigation.footer
-    - navigation.top
-    - search.highlight
     - search.suggest
   palette:
-    - media: '(prefers-color-scheme: dark)'
-      scheme: slate
-      primary: custom
-      accent: custom
+    - scheme: slate
       toggle:
         icon: material/brightness-7
         name: Switch to light mode
-    - media: '(prefers-color-scheme: light)'
-      scheme: default
-      primary: custom
-      accent: custom
+    - scheme: default
       toggle:
         icon: material/brightness-4
         name: Switch to dark mode
@@ -61,9 +52,7 @@ nav:
   - Start here:
       - Overview: index.md
       - Install & update: install.md
-      - What's new: changes.md
   - User guide:
-      - Calendar & weekly planner: calendar.md
       - Journal, tasks & focus: use.md
       - Accounts & data: accounts.md
       - Troubleshooting: troubleshooting.md

@@ -1,6 +1,6 @@
 # Install and update
 
-Choose your platform below. The published downloads are **1.0.0**. To try the upcoming Windows and Linux update, [build 1.2.0 from source](build.md) or see [what’s new](changes.md#productivity-120).
+Download Productivity 1.0.0 for Windows, Linux, or Android. For macOS, use the [build guide](build.md) to create a disk image.
 
 === "Windows"
 
@@ -60,12 +60,6 @@ Choose your platform below. The published downloads are **1.0.0**. To try the up
     3. Tap **Install**, then open **Productivity**. Create an account, sign in, or choose **Use local data**.
 
     To update, install a newer APK signed with the same key over the current app. Uninstalling Productivity removes the local workspace from the device.
-
-=== "Web"
-
-    Open [Productivity in your browser](https://productivity-accounts.onrender.com) and sign in with your Productivity account. In a supported browser, use **Install** or **Add to Home Screen** to open it like an app.
-
-    On iPhone or iPad, open the site in Safari and choose **Share → Add to Home Screen**. Use the same account to open the workspace on desktop or Android.
 
 ## Next steps
 

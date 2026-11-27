@@ -16,9 +16,7 @@ from urllib.request import HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Requ
 from app import InputError
 
 
-DATA_PATH = re.compile(r'/api/(?:journal|home|preferences|features|calendar(?:/\d+)?|'
-                       r'entries(?:/\d+)?|tasks(?:/\d+(?:/subtasks)?)?|subtasks/\d+|'
-                       r'deletions/[A-Za-z0-9_-]{32}/(?:undo|finalize))')
+DATA_PATH = re.compile(r'/api/(?:journal|home|preferences|entries(?:/\d+)?|tasks(?:/\d+(?:/subtasks)?)?|subtasks/\d+)')
 TOKEN = re.compile(r'[a-zA-Z0-9_-]{43}')
 DEFAULT_SERVER_FILE = Path(__file__).with_name('account-service.json')
 

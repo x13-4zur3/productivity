@@ -73,7 +73,7 @@ class Database:
             if role['rolsuper'] or role['rolbypassrls']:
                 raise ValueError('Connect with a dedicated PostgreSQL role that cannot bypass row security.')
             db.execute(SCHEMA.read_text(encoding='utf-8'), prepare=False)
-            for table in ('entries', 'tasks', 'subtasks', 'preferences', 'calendar_events', 'pending_deletions'):
+            for table in ('entries', 'tasks', 'subtasks', 'preferences'):
                 row = db.execute('SELECT row_security_active(%s::regclass) AS active', (table,)).fetchone()
                 if not row['active']:
                     raise ValueError('Account row security could not be enabled.')

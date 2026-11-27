@@ -8,7 +8,6 @@ import sys
 from threading import Event, Thread
 import time
 import traceback
-from urllib.parse import urlsplit
 
 launcher_directory = Path(__file__).resolve().parent
 # The installer copies this file beside app.py. The source tree keeps it two levels deeper.
@@ -112,66 +111,12 @@ def load_webview():
     return webview
 
 
-def install_window_chrome(window, url):
-    origin = urlsplit(url).netloc
-    user = win_api('user32', {
-        'GetWindowLongW': (wintypes.LONG, wintypes.HWND, ctypes.c_int),
-        'SetWindowLongW': (wintypes.LONG, wintypes.HWND, ctypes.c_int, wintypes.LONG),
-        'SetWindowPos': (wintypes.BOOL, wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int,
-                         ctypes.c_int, ctypes.c_int, wintypes.UINT),
-        'IsZoomed': (wintypes.BOOL, wintypes.HWND),
-    })
-    hwnd = None
-
-    def before_show():
-        nonlocal hwnd
-        from System.Windows.Forms import FormBorderStyle
-
-        handle = window.native.Handle.ToInt64()
-        style_index = -16  # GWL_STYLE
-        # Retain system resize borders and window states around the custom caption.
-        window_styles = 0x00040000 | 0x00080000 | 0x00020000 | 0x00010000
-        ctypes.set_last_error(0)
-        style = user.GetWindowLongW(handle, style_index)
-        if style or not ctypes.get_last_error():
-            ctypes.set_last_error(0)
-            previous = user.SetWindowLongW(handle, style_index, style | window_styles)
-            frame_changed = 0x0027  # FRAMECHANGED | NOZORDER | NOMOVE | NOSIZE
-            if (previous or not ctypes.get_last_error()) and user.SetWindowPos(handle, None, 0, 0, 0, 0, frame_changed):
-                hwnd = handle
-                return
-        window.native.FormBorderStyle = FormBorderStyle.Sizable
-
-    def window_chrome(action):
-        current = urlsplit(window.get_current_url() or '')
-        if not hwnd or current.scheme != 'http' or current.netloc != origin:
-            return None
-        if action == 'close':
-            window.destroy()
-            return None
-        if action == 'minimize':
-            window.minimize()
-        elif action == 'maximize':
-            if user.IsZoomed(hwnd):
-                window.restore()
-            else:
-                window.maximize()
-        elif action != 'state':
-            return None
-        return {'maximized': bool(user.IsZoomed(hwnd))}
-
-    window.events.before_show += before_show
-    window.expose(window_chrome)
-
-
-def show_desktop(api, stop_event, directory, url, custom_title=True):
+def show_desktop(api, stop_event, directory, url):
     webview = load_webview()
     icon = launcher_directory / 'productivity.ico'
     window = webview.create_window('Productivity', url, width=1200, height=810,
                                    min_size=(400, 520), text_select=True, zoomable=True,
-                                   frameless=custom_title, easy_drag=False, background_color='#f7f8fc')
-    if custom_title:
-        install_window_chrome(window, url)
+                                   background_color='#f7f8fc')
     finished = Event()
     startup_failed = Event()
 
@@ -231,7 +176,7 @@ def report_error(error, show_dialog):
             traceback.print_exception(error.__cause__, file=sys.stderr)
 
 
-def serve(api, directory, custom_title=True):
+def serve(api, directory):
     ctypes.set_last_error(0)
     mutex = api.CreateMutexW(None, True, MUTEX)
     if not mutex:
@@ -250,7 +195,7 @@ def serve(api, directory, custom_title=True):
                 raise ctypes.WinError(ctypes.get_last_error())
             with desktop_session(directory) as (server, url):
                 (directory / 'port.txt').write_text(str(server.server_port), encoding='ascii')
-                show_desktop(api, event, directory, url, custom_title)
+                show_desktop(api, event, directory, url)
         finally:
             if event:
                 api.CloseHandle(event)
@@ -264,7 +209,6 @@ def serve(api, directory, custom_title=True):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--stop', action='store_true', help='Close the running Productivity window.')
-    parser.add_argument('--system-title-bar', action='store_true', help='Use the standard Windows title bar.')
     args = parser.parse_args()
     try:
         api = kernel_api()
@@ -272,7 +216,7 @@ def main():
         if args.stop:
             stop(api, directory)
         else:
-            serve(api, directory, custom_title=not args.system_title_bar)
+            serve(api, directory)
     except (OSError, RuntimeError) as error:
         report_error(error, show_dialog=sys.stderr is None and not args.stop)
         return 1
